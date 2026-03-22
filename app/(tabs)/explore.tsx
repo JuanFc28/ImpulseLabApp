@@ -1,112 +1,287 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { Collapsible } from '@/components/ui/collapsible';
-import { ExternalLink } from '@/components/external-link';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Fonts } from '@/constants/theme';
+import React, { useState } from 'react';
+import { ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
-export default function TabTwoScreen() {
+export default function ClasesScreen() {
+  // Estado para simular la navegación entre pestañas internas
+  const [activeTab, setActiveTab] = useState('Clases');
+  // Estado para simular qué pasa cuando el usuario reserva una clase (Mock del Frontend)
+  const [claseReservada, setClaseReservada] = useState(false);
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText
-          type="title"
-          style={{
-            fontFamily: Fonts.rounded,
-          }}>
-          Explore
-        </ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image
-          source={require('@/assets/images/react-logo.png')}
-          style={{ width: 100, height: 100, alignSelf: 'center' }}
-        />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful{' '}
-          <ThemedText type="defaultSemiBold" style={{ fontFamily: Fonts.mono }}>
-            react-native-reanimated
-          </ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
+    <ThemedView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        
+        {/* Cabecera */}
+        <View style={styles.header}>
+          <ThemedText type="title" style={styles.title}>Tu Calendario</ThemedText>
+          <ThemedText style={styles.subtitle}>Consulta tu asistencia y clases</ThemedText>
+        </View>
+
+        {/* Maqueta del Calendario Mensual */}
+        <View style={styles.calendarContainer}>
+          <View style={styles.monthSelector}>
+            <IconSymbol name="chevron.left" size={20} color="#00E5FF" />
+            <ThemedText style={styles.monthText}>Marzo 2026</ThemedText>
+            <IconSymbol name="chevron.right" size={20} color="#00E5FF" />
+          </View>
+          <View style={styles.calendarGrid}>
+            <ThemedText style={styles.placeholderText}>
+              [Aquí integraremos el componente de calendario interactivo]
             </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+          </View>
+        </View>
+
+        {/* Racha y Gamificación */}
+        <View style={styles.streakContainer}>
+          <IconSymbol name="flame.fill" size={20} color="#00E5FF" />
+          <ThemedText style={styles.streakText}>5 días seguidos entrenando</ThemedText>
+          <IconSymbol name="checkmark.circle.fill" size={20} color="#00E5FF" />
+        </View>
+
+        {/* Toggle Clases / Coachs */}
+        <View style={styles.toggleContainer}>
+          <TouchableOpacity 
+            style={[styles.toggleButton, activeTab === 'Clases' && styles.toggleButtonActive]}
+            onPress={() => setActiveTab('Clases')}
+          >
+            <ThemedText style={[styles.toggleText, activeTab === 'Clases' && styles.toggleTextActive]}>
+              Clases
+            </ThemedText>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={[styles.toggleButton, activeTab === 'Coachs' && styles.toggleButtonActive]}
+            onPress={() => setActiveTab('Coachs')}
+          >
+            <ThemedText style={[styles.toggleText, activeTab === 'Coachs' && styles.toggleTextActive]}>
+              Coachs
+            </ThemedText>
+          </TouchableOpacity>
+        </View>
+
+        {/* Título de Sección */}
+        <View style={styles.sectionHeader}>
+          <ThemedText style={styles.sectionTitle}>Clases Disponibles</ThemedText>
+          <ThemedText style={styles.sectionSubtitle}>Elige tu clase, profesor y horario</ThemedText>
+        </View>
+
+        {/* Tarjeta de Clase 1 (Pilates) - Con lógica de UI para el QR */}
+        <ThemedView style={styles.classCard}>
+          <View style={styles.classInfoRow}>
+            <View style={styles.classIconContainer}>
+              <IconSymbol name="figure.mind.and.body" size={24} color="#FFF" />
+            </View>
+            <View style={styles.classDetails}>
+              <ThemedText style={styles.className}>Pilates</ThemedText>
+              <ThemedText style={styles.classTeacher}>Prof. Maria Gonzalez</ThemedText>
+              <ThemedText style={styles.classSchedule}>Lun-Mie 9:00 AM - 10:00 AM</ThemedText>
+            </View>
+          </View>
+          
+          {/* Aquí mostramos cómo cambia la UI al reservar (Requisito Control Académico) */}
+          {!claseReservada ? (
+            <TouchableOpacity style={styles.reserveButton} onPress={() => setClaseReservada(true)}>
+              <ThemedText style={styles.reserveButtonText}>Reservar</ThemedText>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={styles.qrButton}>
+              <IconSymbol name="qrcode" size={20} color="#000" />
+              <ThemedText style={styles.qrButtonText}> Generar QR de Acceso</ThemedText>
+            </TouchableOpacity>
+          )}
+        </ThemedView>
+
+        {/* Tarjeta de Clase 2 (Ballet) */}
+        <ThemedView style={styles.classCard}>
+          <View style={styles.classInfoRow}>
+            <View style={[styles.classIconContainer, { backgroundColor: '#0055FF' }]}>
+              <IconSymbol name="music.note" size={24} color="#FFF" />
+            </View>
+            <View style={styles.classDetails}>
+              <ThemedText style={styles.className}>Ballet</ThemedText>
+              <ThemedText style={styles.classTeacher}>Prof. Carmen Ruiz</ThemedText>
+              <ThemedText style={styles.classSchedule}>Lun-Mie 11:00 AM - 12:00 PM</ThemedText>
+            </View>
+          </View>
+          <TouchableOpacity style={styles.reserveButton}>
+            <ThemedText style={styles.reserveButtonText}>Reservar</ThemedText>
+          </TouchableOpacity>
+        </ThemedView>
+
+      </ScrollView>
+    </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
+  container: {
+    flex: 1,
+    backgroundColor: '#0A0A0A',
   },
-  titleContainer: {
+  scrollContent: {
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  header: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#888',
+    marginTop: 4,
+  },
+  calendarContainer: {
+    backgroundColor: '#111',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#222',
+  },
+  monthSelector: {
     flexDirection: 'row',
-    gap: 8,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
   },
+  monthText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#00E5FF',
+    letterSpacing: 1,
+  },
+  calendarGrid: {
+    height: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeholderText: {
+    color: '#444',
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
+  streakContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0, 229, 255, 0.1)',
+    paddingVertical: 12,
+    borderRadius: 20,
+    marginBottom: 25,
+  },
+  streakText: {
+    marginHorizontal: 10,
+    fontWeight: '600',
+    color: '#FFF',
+  },
+  toggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#1A1A1A',
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 25,
+  },
+  toggleButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  toggleButtonActive: {
+    backgroundColor: '#333',
+  },
+  toggleText: {
+    color: '#888',
+    fontWeight: '600',
+  },
+  toggleTextActive: {
+    color: '#FFF',
+  },
+  sectionHeader: {
+    marginBottom: 15,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  sectionSubtitle: {
+    fontSize: 12,
+    color: '#888',
+  },
+  classCard: {
+    backgroundColor: '#111',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: '#222',
+  },
+  classInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
+  classIconContainer: {
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0, 229, 255, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 15,
+  },
+  classDetails: {
+    flex: 1,
+  },
+  className: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 2,
+  },
+  classTeacher: {
+    fontSize: 14,
+    color: '#AAA',
+    marginBottom: 2,
+  },
+  classSchedule: {
+    fontSize: 12,
+    color: '#00E5FF',
+  },
+  reserveButton: {
+    backgroundColor: '#00E5FF',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  reserveButtonText: {
+    color: '#000',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  qrButton: {
+    backgroundColor: '#00E5FF',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    shadowColor: '#00E5FF',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.6,
+    shadowRadius: 8,
+  },
+  qrButtonText: {
+    color: '#000',
+    fontWeight: 'bold',
+    fontSize: 14,
+  }
 });
