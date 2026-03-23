@@ -1,3 +1,4 @@
+import "../src/styles/global.css"; // Ajusta la ruta según dónde lo creaste
 import { Slot, useRouter, useSegments } from "expo-router";
 import { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";

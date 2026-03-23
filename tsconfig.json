@@ -3,7 +3,9 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
-      "@/*": ["./*"]
+      "@/*": [
+        "./*"
+      ]
     }
   },
   "include": [
@@ -16,6 +18,7 @@
     "app/(user)/_layout.jsx",
     "app/(auth)/login.jsx",
     "app/_layout.jsx",
-    "src/context/AuthContext.jsx"
+    "src/context/AuthContext.jsx",
+    "nativewind-env.d.ts"
   ]
 }
