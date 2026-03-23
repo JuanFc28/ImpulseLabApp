@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "rea
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useRouter } from "expo-router";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { validateAttendance } from "@/src/services/gymService"; // IMPORTAMOS EL SERVICIO REAL
 
 export default function ScannerScreen() {
   const router = useRouter();
@@ -10,37 +11,44 @@ export default function ScannerScreen() {
   const [scanned, setScanned] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   
-  // Nuevos estados para manejar el éxito o el error
   const [athleteData, setAthleteData] = useState(null);
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
-  const handleBarcodeScanned = ({ type, data }) => {
+  const handleBarcodeScanned = async ({ type, data }) => {
     if (scanned) return;
     setScanned(true);
     setIsProcessing(true);
 
-    setTimeout(() => {
-      try {
-        // 1. Intentamos convertir el QR en objeto
-        const parsedData = JSON.parse(data);
-        
-        // 2. Validamos que tenga las llaves de nuestro ticket de Impulse Lab
-        if (parsedData.userId && parsedData.classId && parsedData.name) {
+    try {
+      // 1. Convertimos el string del QR de nuevo a un objeto JSON
+      const parsedData = JSON.parse(data);
+      
+      // Soportamos las llaves de tu Ticket actual
+      const uid = parsedData.userId || parsedData.uId;
+      const cid = parsedData.classId || parsedData.classID || parsedData.cId;
+
+      if (uid && cid) {
+        // 2. Llamada real a Firebase
+        const result = await validateAttendance(uid, cid);
+
+        if (result.success) {
           setAthleteData(parsedData);
           setIsError(false);
         } else {
-          // Es un JSON, pero no es de nuestra app
           setIsError(true);
-          setErrorMessage("El pase no pertenece a Impulse Lab.");
+          setErrorMessage(result.message);
         }
-      } catch (error) {
-        // 3. Si truena (como con el QR de Expo), es porque no es un JSON
+      } else {
         setIsError(true);
-        setErrorMessage("Formato de código QR inválido.");
+        setErrorMessage("Código QR no compatible con el sistema de Impulse Lab.");
       }
+    } catch (error) {
+      setIsError(true);
+      setErrorMessage("Formato de código QR inválido o corrupto.");
+    } finally {
       setIsProcessing(false);
-    }, 1200); 
+    }
   };
 
   const resetScanner = () => {
@@ -50,21 +58,13 @@ export default function ScannerScreen() {
     setErrorMessage("");
   };
 
-  if (!permission) {
-    return <View className="flex-1 bg-impulse-dark" />;
-  }
-
+  if (!permission) return <View className="flex-1 bg-impulse-dark" />;
   if (!permission.granted) {
     return (
-      <View className="flex-1 bg-impulse-dark items-center justify-center px-6">
-        <IconSymbol name="camera.badge.ellipsis" size={60} color="#FF9500" />
-        <Text className="text-white text-xl font-black mt-4 text-center">Cámara desactivada</Text>
-        <Text className="text-gray-400 text-center mt-2 mb-8">Necesitamos acceso a tu cámara para escanear los accesos.</Text>
-        <TouchableOpacity 
-          onPress={requestPermission}
-          className="bg-orange-500 px-8 py-4 rounded-full"
-        >
-          <Text className="text-white font-black">OTORGAR PERMISO</Text>
+      <View className="flex-1 bg-impulse-dark justify-center items-center px-6">
+        <Text className="text-white text-center mb-6">Necesitamos acceso a la cámara para escanear los accesos.</Text>
+        <TouchableOpacity onPress={requestPermission} className="bg-orange-500 py-4 px-8 rounded-full">
+          <Text className="text-black font-black">Permitir Cámara</Text>
         </TouchableOpacity>
       </View>
     );
@@ -72,49 +72,34 @@ export default function ScannerScreen() {
 
   return (
     <View className="flex-1 bg-black">
-      <CameraView
-        style={StyleSheet.absoluteFillObject}
+      {/* CÁMARA */}
+      <CameraView 
+        style={StyleSheet.absoluteFillObject} 
         facing="back"
         onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
-        barcodeScannerSettings={{
-          barcodeTypes: ["qr"],
-        }}
+        barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
       />
 
-      {/* OVERLAY DEL ESCÁNER */}
-      <View className="absolute inset-0 z-10 justify-center items-center pointer-events-none">
-        <View className="absolute inset-0 bg-black/60" />
-        <View className="w-72 h-72 border-[1000px] border-black/60 absolute" />
-
-        <View className="w-72 h-72 relative">
-          <View className={`absolute top-0 left-0 w-10 h-10 border-t-4 border-l-4 ${isError ? 'border-red-500' : 'border-orange-500'} rounded-tl-3xl transition-colors`} />
-          <View className={`absolute top-0 right-0 w-10 h-10 border-t-4 border-r-4 ${isError ? 'border-red-500' : 'border-orange-500'} rounded-tr-3xl transition-colors`} />
-          <View className={`absolute bottom-0 left-0 w-10 h-10 border-b-4 border-l-4 ${isError ? 'border-red-500' : 'border-orange-500'} rounded-bl-3xl transition-colors`} />
-          <View className={`absolute bottom-0 right-0 w-10 h-10 border-b-4 border-r-4 ${isError ? 'border-red-500' : 'border-orange-500'} rounded-br-3xl transition-colors`} />
-        </View>
-
+      {/* OVERLAY OSCURO CON VENTANA TRANSAPARENTE */}
+      <View className="flex-1 justify-center items-center bg-black/60">
         {!scanned && (
-          <Text className="text-white text-sm font-bold tracking-widest mt-10 uppercase shadow-lg shadow-black">
-            Alinea el código QR aquí
-          </Text>
+          <View className="w-64 h-64 border-2 border-orange-500/50 rounded-3xl bg-transparent items-center justify-center relative">
+            <View className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-orange-500 rounded-tl-3xl" />
+            <View className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-orange-500 rounded-tr-3xl" />
+            <View className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-orange-500 rounded-bl-3xl" />
+            <View className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-orange-500 rounded-br-3xl" />
+          </View>
         )}
+        {!scanned && <Text className="text-white font-bold mt-8">Apunta al código QR del atleta</Text>}
       </View>
 
-      <TouchableOpacity 
-        onPress={() => router.back()}
-        className="absolute top-16 left-6 w-12 h-12 bg-black/50 rounded-full items-center justify-center border border-white/10 z-20"
-      >
-        <IconSymbol name="xmark" size={20} color="#FFF" />
-      </TouchableOpacity>
-
-      {/* MODAL DINÁMICO (Carga / Éxito / Error) */}
+      {/* RESULTADO DEL ESCÁNER (Aparece desde abajo) */}
       {scanned && (
-        <View className="absolute inset-x-0 bottom-0 bg-impulse-dark rounded-t-[40px] p-8 z-30 border-t border-white/10 shadow-2xl shadow-black">
-          
+        <View className="absolute bottom-0 w-full bg-impulse-dark p-8 rounded-t-[40px] border-t border-white/10 shadow-2xl">
           {isProcessing ? (
              <View className="items-center py-10">
                <ActivityIndicator size="large" color="#FF9500" />
-               <Text className="text-white font-bold mt-4 tracking-widest">VALIDANDO PASE...</Text>
+               <Text className="text-gray-400 font-bold mt-4 uppercase tracking-widest text-xs">Validando en base de datos...</Text>
              </View>
           ) : isError ? (
              // VISTA DE ERROR ❌
@@ -122,16 +107,9 @@ export default function ScannerScreen() {
                <View className="w-20 h-20 bg-red-500/20 rounded-full items-center justify-center mb-4 border-2 border-red-500/50">
                   <IconSymbol name="xmark" size={40} color="#EF4444" />
                </View>
-               <Text className="text-red-500 text-xs font-black tracking-[3px] uppercase mb-1">
-                 Acceso Denegado
-               </Text>
-               <Text className="text-white text-xl font-black mb-1 text-center">{errorMessage}</Text>
-               <Text className="text-gray-400 font-medium mb-8 text-center">Pide al atleta que genere su QR desde la aplicación oficial.</Text>
-
-               <TouchableOpacity 
-                 onPress={resetScanner}
-                 className="w-full bg-impulse-gray border border-white/10 py-5 rounded-2xl items-center"
-               >
+               <Text className="text-red-500 text-xs font-black tracking-[3px] uppercase mb-2">Acceso Denegado</Text>
+               <Text className="text-white text-center font-bold mb-8 px-4">{errorMessage}</Text>
+               <TouchableOpacity onPress={resetScanner} className="w-full bg-impulse-gray border border-white/10 py-5 rounded-2xl items-center">
                  <Text className="text-white font-black tracking-widest">VOLVER A INTENTAR</Text>
                </TouchableOpacity>
              </View>
@@ -141,17 +119,11 @@ export default function ScannerScreen() {
                <View className="w-20 h-20 bg-green-500/20 rounded-full items-center justify-center mb-4 border-2 border-green-500/50">
                   <IconSymbol name="checkmark" size={40} color="#10B981" />
                </View>
-               <Text className="text-green-500 text-xs font-black tracking-[3px] uppercase mb-1">
-                 Acceso Autorizado
-               </Text>
-               <Text className="text-white text-3xl font-black mb-1">{athleteData?.name}</Text>
+               <Text className="text-green-500 text-xs font-black tracking-[3px] uppercase mb-1">Acceso Autorizado</Text>
+               <Text className="text-white text-3xl font-black mb-1">{athleteData?.name || athleteData?.userName}</Text>
                <Text className="text-gray-400 font-medium mb-8">Clase: {athleteData?.className}</Text>
-
-               <TouchableOpacity 
-                 onPress={resetScanner}
-                 className="w-full bg-impulse-gray border border-white/10 py-5 rounded-2xl items-center"
-               >
-                 <Text className="text-white font-black tracking-widest">ESCANEAR SIGUIENTE</Text>
+               <TouchableOpacity onPress={resetScanner} className="w-full bg-orange-500 py-5 rounded-2xl items-center shadow-lg shadow-orange-500/30">
+                 <Text className="text-black font-black tracking-widest">SIGUIENTE ATLETA</Text>
                </TouchableOpacity>
              </View>
           )}

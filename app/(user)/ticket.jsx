@@ -1,79 +1,60 @@
 import React from "react";
 import { View, Text, TouchableOpacity } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import QRCode from "react-native-qrcode-svg";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { useAuth } from "@/src/context/AuthContext";
 
 export default function TicketScreen() {
   const router = useRouter();
+  const { user } = useAuth();
+  const params = useLocalSearchParams(); // Recibe los datos de la reserva
 
-  // Datos simulados de la reserva (Esto después vendrá de tu base de datos)
-  const reservationData = {
-    userId: "rob_12345",
-    classId: "cf_1800_hoy",
-    name: "Roberto M.",
-    className: "CrossFit",
-    time: "18:00 - 19:00 hrs",
-    coach: "David",
-    date: "Hoy, 11 de Marzo"
+  // Si no hay params (entrada directa), usamos valores por defecto o de la base de datos
+  const ticketInfo = {
+    userId: user?.uid || "invitado",
+    userName: user?.displayName || "Atleta Impulse",
+    classId: params.classId || "no_class",
+    className: params.className || "Próxima Clase",
+    time: params.time || "--:--",
+    coach: params.coach || "Staff"
   };
 
-  // Convertimos los datos a un string JSON para que el QR los almacene
-  const qrPayload = JSON.stringify(reservationData);
+  // El payload que leerá el Scanner del Coach
+  const qrPayload = JSON.stringify({
+    uId: ticketInfo.userId,
+    cId: ticketInfo.classId,
+    name: ticketInfo.userName,
+    date: new Date().toLocaleDateString()
+  });
 
   return (
-    <View className="flex-1 bg-impulse-dark justify-center px-6">
-      
-      {/* Botón de regresar */}
+    <View className="flex-1 bg-impulse-dark justify-center px-8">
       <TouchableOpacity 
         onPress={() => router.back()}
-        className="absolute top-16 left-6 w-12 h-12 bg-white/5 rounded-full items-center justify-center border border-white/10 z-10"
+        className="absolute top-16 left-6 w-12 h-12 bg-white/5 rounded-full items-center justify-center border border-white/10"
       >
         <IconSymbol name="chevron.left" size={24} color="#FFF" />
       </TouchableOpacity>
 
-      {/* CONTENEDOR DEL BOLETO */}
-      <View className="bg-impulse-gray rounded-[40px] border border-white/10 p-8 items-center relative overflow-hidden shadow-2xl shadow-impulse-cyan/30">
-        
-        {/* Decoración de fondo */}
-        <View className="absolute -top-20 -right-20 w-48 h-48 bg-impulse-cyan/10 rounded-full" />
-        <View className="absolute -bottom-20 -left-20 w-48 h-48 bg-impulse-cyan/10 rounded-full" />
+      <View className="items-center bg-impulse-gray p-8 rounded-[40px] border border-white/10">
+        <Text className="text-impulse-cyan font-black text-xs uppercase tracking-[4px] mb-2">Pase de Acceso</Text>
+        <Text className="text-white text-3xl font-black mb-1">{ticketInfo.className}</Text>
+        <Text className="text-gray-400 font-bold mb-8">{ticketInfo.time} • Coach {ticketInfo.coach}</Text>
 
-        <Text className="text-gray-400 text-[10px] font-black tracking-[3px] uppercase mb-2">
-          Pase de Acceso
-        </Text>
-        <Text className="text-white text-3xl font-black mb-1">{reservationData.className}</Text>
-        <Text className="text-impulse-cyan font-bold text-sm mb-8">{reservationData.date} • {reservationData.time}</Text>
-
-        {/* ZONA DEL CÓDIGO QR */}
-        <View className="bg-white p-4 rounded-3xl mb-8 shadow-lg shadow-white/10">
-          <QRCode
-            value={qrPayload}
-            size={200}
-            color="#0A0A0A" // Color del código (oscuro para contraste)
-            backgroundColor="#FFFFFF" // Fondo blanco crítico para que las cámaras lo lean
-            logoBackgroundColor="transparent"
-          />
+        <View className="bg-white p-5 rounded-3xl mb-8 shadow-2xl shadow-cyan-500/20">
+          <QRCode value={qrPayload} size={180} color="#000" backgroundColor="#FFF" />
         </View>
 
-        {/* DETALLES DEL ATLETA */}
-        <View className="w-full bg-black/20 rounded-2xl p-4 border border-white/5 mb-6">
-          <View className="flex-row justify-between mb-2">
-            <Text className="text-gray-500 text-xs font-bold uppercase">Atleta</Text>
-            <Text className="text-white text-xs font-black">{reservationData.name}</Text>
-          </View>
-          <View className="flex-row justify-between">
-            <Text className="text-gray-500 text-xs font-bold uppercase">Coach</Text>
-            <Text className="text-white text-xs font-black">{reservationData.coach}</Text>
-          </View>
-        </View>
-
-        <View className="flex-row items-center">
-          <IconSymbol name="checkmark.shield.fill" size={16} color="#10B981" />
-          <Text className="text-green-500 text-xs font-bold ml-2">Reserva Confirmada</Text>
+        <View className="w-full border-t border-white/5 pt-6 items-center">
+          <Text className="text-gray-500 text-[10px] font-bold uppercase tracking-widest">Atleta</Text>
+          <Text className="text-white text-lg font-black">{ticketInfo.userName}</Text>
         </View>
       </View>
-
+      
+      <Text className="text-gray-600 text-center mt-8 px-10 text-xs">
+        Presenta este código al coach al llegar al box para validar tu asistencia.
+      </Text>
     </View>
   );
 }

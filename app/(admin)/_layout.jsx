@@ -1,8 +1,5 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
-import { Platform } from 'react-native';
-
-import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 
 export default function AdminLayout() {
@@ -10,32 +7,40 @@ export default function AdminLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#10B981', // Verde Esmeralda para el Admin
-        tabBarInactiveTintColor: '#666666',
-        tabBarButton: HapticTab,
+        tabBarActiveTintColor: '#10B981', // Esmeralda Admin
         tabBarStyle: {
           backgroundColor: '#0A0A0A',
-          borderTopWidth: 1,
           borderTopColor: '#222222',
-          height: Platform.OS === 'ios' ? 85 : 65,
-          paddingBottom: Platform.OS === 'ios' ? 25 : 10,
-          paddingTop: 10,
         },
       }}>
+      
+      {/* 1. DASHBOARD - Visible */}
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Dashboard',
+          title: 'Panel',
           tabBarIcon: ({ color }) => <IconSymbol size={24} name="house.fill" color={color} />,
         }}
       />
+
+      {/* 2. CLASES - OCULTO DEL TAB BAR ✅ */}
+      <Tabs.Screen
+        name="classes"
+        options={{
+          href: null, // <--- Esta es la clave: la ruta existe pero el botón desaparece
+        }}
+      />
+
+      {/* 3. USUARIOS - Visible */}
       <Tabs.Screen
         name="users"
         options={{
-          title: 'Usuarios',
+          title: 'Staff/Atletas',
           tabBarIcon: ({ color }) => <IconSymbol size={24} name="person.2.fill" color={color} />,
         }}
       />
+
+      {/* 4. FINANZAS - Visible */}
       <Tabs.Screen
         name="finances"
         options={{

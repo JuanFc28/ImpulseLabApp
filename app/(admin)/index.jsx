@@ -2,15 +2,17 @@ import React from "react";
 import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuth } from "../../src/context/AuthContext";
+import { useRouter } from "expo-router";
 
 export default function AdminDashboardScreen() {
   const { user } = useAuth();
   // Asumimos que el admin principal es el dueño
   const adminName = user?.displayName ? user.displayName.split(' ')[0] : "David";
+  const router = useRouter();
 
   return (
     <View className="flex-1 bg-impulse-dark relative">
-      <ScrollView 
+      <ScrollView
         className="flex-1 px-5 pt-14"
         showsVerticalScrollIndicator={false}
         contentContainerClassName="pb-[100px]"
@@ -20,7 +22,7 @@ export default function AdminDashboardScreen() {
           <View className="flex-row items-center">
             <View className="w-12 h-12 rounded-full border-2 border-emerald-500 p-[2px] mr-3">
               <View className="flex-1 rounded-full bg-impulse-gray items-center justify-center overflow-hidden">
-                 <IconSymbol name="shield.fill" size={20} color="#10B981" />
+                <IconSymbol name="shield.fill" size={20} color="#10B981" />
               </View>
             </View>
             <View>
@@ -39,16 +41,16 @@ export default function AdminDashboardScreen() {
         {/* MÉTRICA PRINCIPAL: INGRESOS DEL MES */}
         <View className="bg-emerald-500 rounded-[32px] p-6 mb-6 shadow-2xl shadow-emerald-500/20 relative overflow-hidden">
           <View className="absolute -right-6 -top-6 w-32 h-32 rounded-full bg-white/10" />
-          
+
           <View className="flex-row justify-between items-center mb-2">
             <Text className="text-emerald-950 text-xs font-black tracking-widest uppercase">Ingresos Marzo</Text>
             <View className="bg-white/20 px-2 py-1 rounded-full">
               <Text className="text-emerald-950 text-[10px] font-bold">+15% vs mes ant.</Text>
             </View>
           </View>
-          
+
           <Text className="text-emerald-950 text-4xl font-black mb-4">$42,500<Text className="text-xl"> MXN</Text></Text>
-          
+
           <View className="flex-row gap-2">
             <TouchableOpacity className="bg-emerald-950/10 px-4 py-2 rounded-full border border-emerald-950/20">
               <Text className="text-emerald-950 text-xs font-bold">Ver Reporte</Text>
@@ -81,9 +83,12 @@ export default function AdminDashboardScreen() {
         {/* ACCIONES RÁPIDAS ADMINISTRATIVAS */}
         <Text className="text-white text-lg font-black mb-4">Gestión Rápida</Text>
         <View className="bg-[#111] border border-white/5 rounded-[32px] p-4 mb-8">
-          <TouchableOpacity className="flex-row items-center p-3 border-b border-white/5">
+          <TouchableOpacity
+            onPress={() => router.push("/(admin)/classes")} // Navega a la gestión de clases
+            className="flex-row items-center p-3 border-b border-white/5"
+          >
             <View className="bg-white/5 w-10 h-10 rounded-xl items-center justify-center mr-4">
-              <IconSymbol name="calendar.badge.plus" size={18} color="#FFF" />
+              <IconSymbol name="calendar" size={18} color="#FFF" />
             </View>
             <View className="flex-1">
               <Text className="text-white font-bold">Modificar Horarios</Text>

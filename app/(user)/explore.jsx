@@ -1,163 +1,198 @@
-import React, { useState } from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import React, { useState, useEffect } from "react";
+import { ScrollView, Text, TouchableOpacity, View, Alert, ActivityIndicator } from "react-native";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { useRouter } from "expo-router";
+import { useAuth } from "@/src/context/AuthContext";
+import { db } from "@/src/config/firebase";
+import { collection, query, where, getDocs } from "firebase/firestore";
+import { bookClass } from "@/src/services/gymService"; // Asegúrate de que la ruta sea correcta
 
 export default function ExploreScreen() {
-  const [activeFilter, setActiveFilter] = useState("CrossFit");
-  const [selectedDay, setSelectedDay] = useState(11); // Simulamos que hoy es 11
-
-  const filters = ["Todos", "CrossFit", "Fuerza", "Endurance"];
+  const router = useRouter();
+  const { user } = useAuth();
   
-  const weekDays = [
-    { day: 'LUN', num: 10 },
-    { day: 'MAR', num: 11 },
-    { day: 'MIE', num: 12 },
-    { day: 'JUE', num: 13 },
-    { day: 'VIE', num: 14 },
-    { day: 'SAB', num: 15 },
-  ];
+  const [weekDays, setWeekDays] = useState([]);
+  const [selectedDateISO, setSelectedDateISO] = useState(""); // Ej. "2026-03-24"
+  
+  const [classes, setClasses] = useState([]);
+  const [myReservations, setMyReservations] = useState([]); // Array de classID
+  const [isLoading, setIsLoading] = useState(true);
 
-  const classesMock = [
-    { id: 1, time: "07:00", ampm: "AM", name: "CrossFit", coach: "David", spots: 2, color: "bg-impulse-cyan", textColor: "text-impulse-cyan" },
-    { id: 2, time: "08:30", ampm: "AM", name: "Fuerza", coach: "Pako", spots: 5, color: "bg-orange-500", textColor: "text-orange-500" },
-    { id: 3, time: "18:00", ampm: "PM", name: "CrossFit", coach: "David", spots: 0, color: "bg-impulse-cyan", textColor: "text-impulse-cyan" },
-  ];
+  // 1. Generar la semana actual y el formato de fecha para Firebase
+  useEffect(() => {
+    const days = [];
+    const today = new Date();
+    const current = new Date(today);
+    const dayOfWeek = current.getDay(); 
+    const diff = current.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); 
+    current.setDate(diff);
+
+    const labels = ['LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'];
+    
+    for (let i = 0; i < 6; i++) {
+      // Crear string ISO manual (YYYY-MM-DD) para evitar problemas de zona horaria
+      const year = current.getFullYear();
+      const month = String(current.getMonth() + 1).padStart(2, '0');
+      const day = String(current.getDate()).padStart(2, '0');
+      const isoDate = `${year}-${month}-${day}`;
+
+      days.push({
+        label: labels[i],
+        num: current.getDate(),
+        isoDate: isoDate
+      });
+      
+      // Si es hoy, lo seleccionamos por defecto
+      if (today.getDate() === current.getDate()) {
+        setSelectedDateISO(isoDate);
+      }
+      
+      current.setDate(current.getDate() + 1);
+    }
+    setWeekDays(days);
+  }, []);
+
+  // 2. Traer clases y reservas desde Firebase cuando cambia el día
+  useEffect(() => {
+    if (!selectedDateISO || !user) return;
+
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        // A. Traer las clases de ese día específico
+        const qClasses = query(collection(db, "classes"), where("date", "==", selectedDateISO));
+        const classSnap = await getDocs(qClasses);
+        const loadedClasses = classSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        // B. Traer las reservaciones de este usuario para saber cuáles botones poner en "VER TICKET"
+        const qRes = query(collection(db, "reservations"), where("userId", "==", user.uid));
+        const resSnap = await getDocs(qRes);
+        // Extraemos solo los IDs de las clases reservadas (Usando tu campo classID)
+        const bookedIds = resSnap.docs.map(doc => doc.data().classID);
+
+        setClasses(loadedClasses);
+        setMyReservations(bookedIds);
+      } catch (error) {
+        console.error("Error cargando datos: ", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [selectedDateISO, user]);
+
+  // 3. Lógica Real de Reserva
+  const handleReserve = (classItem) => {
+    if (classItem.availableSpots <= 0) {
+      Alert.alert("Lista de Espera", "Esta clase está llena. Te hemos añadido a la lista de espera.");
+      return;
+    }
+
+    Alert.alert(
+      "Confirmar Reserva",
+      `¿Quieres apartar tu lugar en ${classItem.name} a las ${classItem.startTime}?`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        { 
+          text: "Reservar", 
+          onPress: async () => {
+            try {
+              const userName = user?.displayName || "Atleta";
+              // Llamamos al servicio real
+              await bookClass(user.uid, classItem, userName);
+              
+              // Actualizamos el estado local para que el botón cambie de inmediato
+              setMyReservations([...myReservations, classItem.id]);
+              
+              Alert.alert("¡Listo!", "Tu lugar está asegurado.");
+            } catch (error) {
+              Alert.alert("Error", "No pudimos procesar tu reserva. Intenta de nuevo.");
+            }
+          }
+        }
+      ]
+    );
+  };
 
   return (
-    <View className="flex-1 bg-impulse-dark">
-      {/* HEADER FIJO */}
-      <View className="px-5 pt-16 pb-4 bg-impulse-dark/90 z-10">
-        <Text className="text-white text-3xl font-black tracking-tight mb-1">Horarios</Text>
-        <View className="flex-row items-center">
-          <IconSymbol name="calendar" size={14} color="#888" />
-          <Text className="text-gray-400 text-xs font-bold ml-2 uppercase tracking-widest">
-            Marzo 2026
-          </Text>
-        </View>
+    <View className="flex-1 bg-impulse-dark pt-14 px-5">
+      <Text className="text-white text-3xl font-black mb-6">Explorar Clases</Text>
+      
+      {/* CALENDARIO DE LA SEMANA */}
+      <View className="flex-row justify-between mb-8">
+        {weekDays.map((day, index) => {
+          const isSelected = day.isoDate === selectedDateISO;
+          return (
+            <TouchableOpacity 
+              key={index}
+              onPress={() => setSelectedDateISO(day.isoDate)}
+              className={`items-center justify-center w-12 py-4 rounded-2xl border ${isSelected ? 'bg-impulse-cyan border-impulse-cyan' : 'bg-white/5 border-white/5'}`}
+            >
+              <Text className={`text-[10px] font-black mb-1 ${isSelected ? 'text-black' : 'text-gray-500'}`}>{day.label}</Text>
+              <Text className={`text-lg font-black ${isSelected ? 'text-black' : 'text-white'}`}>{day.num}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
-      <ScrollView 
-        className="flex-1"
-        showsVerticalScrollIndicator={false}
-        contentContainerClassName="pb-32 pt-2"
-      >
-        {/* SELECTOR DE DÍAS HORIZONTAL */}
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false} 
-          className="mb-6 px-5"
-        >
-          <View className="flex-row gap-3 pr-10">
-            {weekDays.map((item) => {
-              const isSelected = item.num === selectedDay;
-              return (
-                <TouchableOpacity 
-                  key={item.num}
-                  activeOpacity={0.8}
-                  onPress={() => setSelectedDay(item.num)}
-                  className={`w-14 h-20 rounded-full items-center justify-center border ${
-                    isSelected 
-                      ? "bg-impulse-cyan border-impulse-cyan" 
-                      : "bg-white/5 border-white/10"
-                  }`}
-                >
-                  <Text className={`text-[10px] font-black mb-1 ${isSelected ? "text-impulse-dark" : "text-gray-500"}`}>
-                    {item.day}
-                  </Text>
-                  <Text className={`text-xl font-black ${isSelected ? "text-impulse-dark" : "text-white"}`}>
-                    {item.num}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </ScrollView>
-
-        {/* FILTROS (PÍLDORAS) */}
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false} 
-          className="mb-8 px-5"
-        >
-          <View className="flex-row gap-2 pr-10">
-            {filters.map((filter) => {
-              const isActive = activeFilter === filter;
-              return (
-                <TouchableOpacity
-                  key={filter}
-                  onPress={() => setActiveFilter(filter)}
-                  className={`px-5 py-2.5 rounded-full border ${
-                    isActive 
-                      ? "bg-white/10 border-white/20" 
-                      : "bg-transparent border-white/5"
-                  }`}
-                >
-                  <Text className={`text-xs font-bold ${isActive ? "text-white" : "text-gray-500"}`}>
-                    {filter}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </ScrollView>
-
-        {/* LISTA DE CLASES (TIMELINE) */}
-        <View className="px-5">
-          {classesMock.map((cls, index) => (
-            <View key={cls.id} className="flex-row mb-6">
-              
-              {/* Columna de Hora (Izquierda) */}
-              <View className="w-16 items-center mr-4">
-                <Text className="text-white text-lg font-black">{cls.time}</Text>
-                <Text className="text-gray-500 text-[10px] font-bold mb-2">{cls.ampm}</Text>
-                {/* Línea conectora visual (se oculta en el último elemento) */}
-                {index !== classesMock.length - 1 && (
-                  <View className="flex-1 w-[2px] bg-white/10 rounded-full" />
-                )}
-              </View>
-
-              {/* Tarjeta de la Clase */}
-              <View className="flex-1 bg-impulse-gray border border-white/5 rounded-3xl p-5 relative overflow-hidden">
-                {/* Acento de color lateral */}
-                <View className={`absolute left-0 top-0 bottom-0 w-1.5 ${cls.color}`} />
-
-                <View className="flex-row justify-between items-start mb-4 ml-2">
+      {/* LISTA DE CLASES */}
+      {isLoading ? (
+        <View className="flex-1 justify-center items-center">
+          <ActivityIndicator size="large" color="#00E5FF" />
+        </View>
+      ) : classes.length === 0 ? (
+        <View className="flex-1 justify-center items-center">
+          <IconSymbol name="calendar.badge.exclamationmark" size={48} color="#444" />
+          <Text className="text-gray-500 font-bold mt-4">No hay clases programadas para este día.</Text>
+        </View>
+      ) : (
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+          {classes.map((cls) => {
+            const isReserved = myReservations.includes(cls.id);
+            const spots = cls.availableSpots || 0;
+            const colorClass = cls.name === "CrossFit" ? "bg-impulse-cyan" : "bg-orange-500";
+            
+            return (
+              <View key={cls.id} className="bg-impulse-gray p-5 rounded-3xl mb-4 border border-white/5">
+                <View className="flex-row justify-between items-center mb-4">
                   <View>
-                    <Text className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mb-1">
-                      Coach {cls.coach}
-                    </Text>
-                    <Text className="text-white text-xl font-black">{cls.name}</Text>
+                    <Text className="text-white text-2xl font-black">{cls.startTime}</Text>
+                    <Text className="text-gray-400 font-bold">{cls.name} con {cls.coachName}</Text>
                   </View>
-                  <View className="bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
-                    <Text className="text-gray-300 text-[10px] font-bold">60 min</Text>
+                  <View className={`px-3 py-1 rounded-full ${colorClass} opacity-20`}>
+                     <Text className="font-bold text-[10px] text-white">60 MIN</Text>
                   </View>
                 </View>
 
-                {/* Área de Reserva */}
-                <View className="flex-row items-center justify-between ml-2 mt-2">
-                  <View className="flex-row items-center">
-                    <IconSymbol name="person.fill" size={14} color={cls.spots > 0 ? "#FFF" : "#EF4444"} />
-                    <Text className={`text-xs font-bold ml-1.5 ${cls.spots > 0 ? "text-gray-300" : "text-red-500"}`}>
-                      {cls.spots > 0 ? `Quedan ${cls.spots} lugares` : "Lista de espera"}
-                    </Text>
-                  </View>
+                <View className="flex-row items-center justify-between">
+                  <Text className={`text-xs font-bold ${spots > 0 ? "text-gray-400" : "text-red-500"}`}>
+                    {spots > 0 ? `${spots} lugares disponibles` : "Sin cupo"}
+                  </Text>
 
                   <TouchableOpacity 
-                    activeOpacity={0.8}
-                    className={`px-5 py-2.5 rounded-xl ${cls.spots > 0 ? cls.color : "bg-white/10"}`}
+                    onPress={() => {
+                      if (isReserved) {
+                        router.push({
+                          pathname: "/(user)/ticket",
+                          params: { classId: cls.id, className: cls.name, time: cls.startTime, coach: cls.coachName }
+                        });
+                      } else {
+                        handleReserve(cls);
+                      }
+                    }}
+                    className={`px-6 py-3 rounded-2xl ${isReserved ? "bg-white/10 border border-white/20" : (spots > 0 ? colorClass : "bg-red-500/20")}`}
                   >
-                    <Text className={`text-xs font-black ${cls.spots > 0 ? "text-impulse-dark" : "text-gray-400"}`}>
-                      {cls.spots > 0 ? "RESERVAR" : "UNIRSE"}
+                    <Text className={`font-black text-xs ${isReserved ? "text-white" : "text-black"}`}>
+                      {isReserved ? "VER TICKET" : (spots > 0 ? "RESERVAR" : "ESPERA")}
                     </Text>
                   </TouchableOpacity>
                 </View>
-
               </View>
-            </View>
-          ))}
-        </View>
-
-      </ScrollView>
+            );
+          })}
+        </ScrollView>
+      )}
     </View>
   );
 }
