@@ -6,7 +6,7 @@ import {
     signOut,
     updateProfile,
 } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { auth, db } from "../config/firebase";
 
@@ -18,43 +18,89 @@ export const AuthProvider = ({ children }) => {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+        let unsubscribeUserDoc = null;
+
+        const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+            if (unsubscribeUserDoc) {
+                unsubscribeUserDoc();
+                unsubscribeUserDoc = null;
+            }
+
             if (firebaseUser) {
-                const docRef = doc(db, "users", firebaseUser.uid);
-                const docSnap = await getDoc(docRef);
+                try {
+                    const docRef = doc(db, "users", firebaseUser.uid);
 
-                let finalRole = null;
-                let finalName = firebaseUser.displayName;
+                    unsubscribeUserDoc = onSnapshot(
+                        docRef,
+                        async (docSnap) => {
+                            let finalRole = "user";
+                            let finalName = firebaseUser.displayName || "";
 
-                if (docSnap.exists()) {
-                    const userData = docSnap.data();
-                    finalRole = userData.role;
-                    finalName = firebaseUser.displayName || userData.name || "";
-                    await AsyncStorage.setItem("@user_role", userData.role);
+                            if (docSnap.exists()) {
+                                const userData = docSnap.data();
 
-                    if (!firebaseUser.displayName && userData.name) {
-                        await updateProfile(firebaseUser, { displayName: userData.name });
-                    }
-                } else {
+                                finalRole = userData.role || "user";
+                                finalName = firebaseUser.displayName || userData.name || "";
+
+                                await AsyncStorage.setItem("@user_role", finalRole);
+
+                                if (!firebaseUser.displayName && userData.name) {
+                                    await updateProfile(firebaseUser, {
+                                        displayName: userData.name,
+                                    });
+                                    finalName = userData.name;
+                                }
+                            } else {
+                                const savedRole = await AsyncStorage.getItem("@user_role");
+                                finalRole = savedRole || "user";
+                            }
+
+                            setUser({
+                                ...firebaseUser,
+                                displayName: finalName,
+                            });
+                            setRole(finalRole);
+                            setIsLoading(false);
+                        },
+                        async (error) => {
+                            console.error("Error escuchando documento del usuario:", error);
+
+                            const savedRole = await AsyncStorage.getItem("@user_role");
+
+                            setUser({
+                                ...firebaseUser,
+                                displayName: firebaseUser.displayName || "",
+                            });
+                            setRole(savedRole || "user");
+                            setIsLoading(false);
+                        }
+                    );
+                } catch (error) {
+                    console.error("Error en AuthContext:", error);
+
                     const savedRole = await AsyncStorage.getItem("@user_role");
-                    finalRole = savedRole;
-                }
 
-                setUser({
-                    ...firebaseUser,
-                    displayName: finalName,
-                });
-                setRole(finalRole);
+                    setUser({
+                        ...firebaseUser,
+                        displayName: firebaseUser.displayName || "",
+                    });
+                    setRole(savedRole || "user");
+                    setIsLoading(false);
+                }
             } else {
                 setUser(null);
                 setRole(null);
                 await AsyncStorage.removeItem("@user_role");
+                setIsLoading(false);
             }
-
-            setIsLoading(false);
         });
 
-        return () => unsubscribe();
+        return () => {
+            if (unsubscribeUserDoc) {
+                unsubscribeUserDoc();
+            }
+            unsubscribeAuth();
+        };
     }, []);
 
     const login = async (email, pass) => {
