@@ -98,3 +98,24 @@ export const deleteClass = async (classId) => {
     return { success: false, message: e.message };
   }
 };
+
+// PARA EL COACH: Guardar la evaluación de un atleta después de la clase
+export const evaluateAthlete = async (reservationId, evaluationData) => {
+  try {
+    const reservationRef = doc(db, "reservations", reservationId);
+    
+    // Actualizamos el documento de la reservación con los datos de la evaluación
+    await updateDoc(reservationRef, {
+      evaluation: evaluationData.objectives,
+      compliancePercentage: evaluationData.percentage,
+      performanceLevel: evaluationData.performanceLevel,
+      isEvaluated: true,
+      evaluatedAt: new Date()
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error al guardar la evaluación: ", error);
+    return { success: false, message: error.message };
+  }
+};

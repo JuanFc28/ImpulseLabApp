@@ -1,109 +1,154 @@
 import React, { useState, useEffect } from "react";
-import { ScrollView, Text, TouchableOpacity, View, Image } from "react-native";
+import { View, Text, ScrollView, ActivityIndicator } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuth } from "@/src/context/AuthContext";
-import { useRouter } from "expo-router";
+import { db } from "@/src/config/firebase";
+import { collection, query, where, getDocs } from "firebase/firestore";
 
-export default function HomeScreen() {
-  const { user } = useAuth();
-  const router = useRouter();
-  const [weekDays, setWeekDays] = useState([]);
-  const [selectedDay, setSelectedDay] = useState(new Date().getDate());
+export default function UserDashboard() {
+    const { user } = useAuth();
+    const [evaluations, setEvaluations] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-  // Generar la semana real dinámicamente
-  useEffect(() => {
-    const days = [];
-    const today = new Date();
-    // Obtenemos el lunes de la semana actual
-    const current = new Date(today);
-    const dayOfWeek = current.getDay(); // 0 es domingo
-    const diff = current.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); 
-    current.setDate(diff);
+    const firstName = user?.displayName ? user.displayName.split(" ")[0] : "Atleta";
 
-    const labels = ['LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'];
-    for (let i = 0; i < 6; i++) {
-      days.push({
-        label: labels[i],
-        num: current.getDate(),
-        fullDate: new Date(current)
-      });
-      current.setDate(current.getDate() + 1);
-    }
-    setWeekDays(days);
-  }, []);
-
-  return (
-    <View className="flex-1 bg-impulse-dark">
-      <ScrollView className="flex-1 px-5 pt-14" showsVerticalScrollIndicator={false}>
-        
-        {/* HEADER PREMIUM (Original) */}
-        <View className="flex-row justify-between items-center mb-8">
-          <View className="flex-row items-center">
-            <View className="w-12 h-12 rounded-full border-2 border-impulse-cyan p-[2px] mr-3">
-              <View className="flex-1 rounded-full bg-impulse-gray items-center justify-center overflow-hidden">
-                <IconSymbol name="person.fill" size={20} color="#00E5FF" />
-              </View>
-            </View>
-            <View>
-              <Text className="text-gray-400 text-[10px] font-black uppercase tracking-[2px]">Impulse Lab</Text>
-              <Text className="text-white text-xl font-black">Hola, {user?.displayName?.split(' ')[0] || "Atleta"}</Text>
-            </View>
-          </View>
-          <TouchableOpacity className="w-10 h-10 bg-white/5 rounded-full items-center justify-center border border-white/10">
-            <IconSymbol name="bell.fill" size={18} color="#FFF" />
-          </TouchableOpacity>
-        </View>
-
-        {/* SEGUIMIENTO DE FECHAS REALES */}
-        <View className="flex-row justify-between mb-8">
-          {weekDays.map((day, index) => {
-            const isToday = day.num === selectedDay;
-            return (
-              <TouchableOpacity 
-                key={index}
-                onPress={() => setSelectedDay(day.num)}
-                className={`items-center justify-center w-12 py-4 rounded-2xl border ${isToday ? 'bg-impulse-cyan border-impulse-cyan' : 'bg-white/5 border-white/5'}`}
-              >
-                <Text className={`text-[10px] font-black mb-1 ${isToday ? 'text-black' : 'text-gray-500'}`}>{day.label}</Text>
-                <Text className={`text-lg font-black ${isToday ? 'text-black' : 'text-white'}`}>{day.num}</Text>
-              </TouchableOpacity>
+    const fetchEvaluations = async () => {
+        if (!user?.uid) return;
+        setIsLoading(true);
+        try {
+            // Buscamos las reservaciones de este usuario que ya tengan evaluación
+            const q = query(
+                collection(db, "reservations"),
+                where("userId", "==", user.uid),
+                where("isEvaluated", "==", true)
             );
-          })}
-        </View>
+            const querySnapshot = await getDocs(q);
+            const loadedEvals = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-        {/* PRÓXIMA CLASE / TICKET (Foco Principal) */}
-        <View className="bg-impulse-gray rounded-[40px] p-8 border border-white/5 mb-6 overflow-hidden">
-          <View className="absolute -top-10 -right-10 w-40 h-40 bg-impulse-cyan/5 rounded-full" />
-          
-          <Text className="text-impulse-cyan text-[10px] font-black uppercase tracking-[4px] mb-4">Acceso Rápido</Text>
-          <Text className="text-white text-3xl font-black mb-2">CrossFit</Text>
-          <Text className="text-gray-400 font-bold mb-8">18:00 hrs • Coach David</Text>
-          
-          <TouchableOpacity 
-            onPress={() => router.push("/(user)/ticket")}
-            className="bg-impulse-cyan py-5 rounded-3xl flex-row justify-center items-center shadow-lg shadow-impulse-cyan/20"
-          >
-            <IconSymbol name="qrcode" size={22} color="#000" style={{marginRight: 10}} />
-            <Text className="text-black font-black tracking-widest text-sm">GENERAR PASE</Text>
-          </TouchableOpacity>
-        </View>
+            // Las ordenamos de la más reciente a la más antigua
+            loadedEvals.sort((a, b) => {
+                const dateA = new Date(`${a.classDate || a.date}T${a.startTime || "00:00"}`);
+                const dateB = new Date(`${b.classDate || b.date}T${b.startTime || "00:00"}`);
+                return dateB - dateA;
+            });
 
-        {/* STATS SIMPLES */}
-        <View className="flex-row gap-4">
-          <View className="flex-1 bg-white/5 p-6 rounded-[32px] border border-white/5">
-            <Text className="text-gray-500 text-[10px] font-black tracking-widest mb-1">ASISTENCIAS</Text>
-            <Text className="text-white text-3xl font-black">12</Text>
-          </View>
-          <View className="flex-1 bg-white/5 p-6 rounded-[32px] border border-white/5">
-            <Text className="text-gray-500 text-[10px] font-black tracking-widest mb-1">RACHA</Text>
-            <View className="flex-row items-center">
-              <Text className="text-white text-3xl font-black mr-2">4</Text>
-              <IconSymbol name="flame.fill" size={20} color="#FF9500" />
+            setEvaluations(loadedEvals);
+        } catch (error) {
+            console.error("Error al cargar historial:", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Refrescar los datos cada vez que se monte el componente
+    useEffect(() => {
+        fetchEvaluations();
+    }, [user]);
+
+    // Función para obtener los colores de la etiqueta de desempeño
+    const getPerformanceBadge = (level) => {
+        if (level === "Excelente") return { bg: "bg-green-500/10", text: "text-green-500", border: "border-green-500/30", ring: "#10B981" };
+        if (level === "Bueno") return { bg: "bg-yellow-500/10", text: "text-yellow-500", border: "border-yellow-500/30", ring: "#EAB308" };
+        return { bg: "bg-red-500/10", text: "text-red-500", border: "border-red-500/30", ring: "#EF4444" };
+    };
+
+    // Sub-componente visual para las "palomitas" de los hábitos
+    const HabitIndicator = ({ label, score }) => {
+        let iconName = "xmark.circle.fill";
+        let iconColor = "#EF4444"; // Rojo (No cumplido)
+        
+        if (score === 1) { 
+            iconName = "checkmark.circle.fill"; 
+            iconColor = "#10B981"; // Verde (Cumplido)
+        } else if (score === 0.5) { 
+            iconName = "exclamationmark.triangle.fill"; 
+            iconColor = "#EAB308"; // Amarillo (A medias)
+        }
+
+        return (
+            <View className="flex-row items-center mb-2.5">
+                <IconSymbol name={iconName} size={16} color={iconColor} />
+                <Text className="text-gray-300 text-xs ml-2 font-medium">{label}</Text>
             </View>
-          </View>
-        </View>
+        );
+    };
 
-      </ScrollView>
-    </View>
-  );
+    return (
+        <SafeAreaView className="flex-1 bg-impulse-dark">
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
+                
+                {/* SALUDO INICIAL */}
+                <View className="px-5 pt-6 mb-8">
+                    <Text className="text-gray-500 text-[10px] font-black uppercase tracking-[2px]">Dashboard</Text>
+                    <Text className="text-white text-3xl font-black">Hola, {firstName}</Text>
+                </View>
+
+                {/* SECCIÓN: HISTORIAL DE DESEMPEÑO */}
+                <View className="px-5">
+                    <View className="flex-row items-center mb-6">
+                        <IconSymbol name="chart.bar.fill" size={20} color="#00E5FF" />
+                        <Text className="text-white text-xl font-black ml-2">Tu Historial de Desempeño</Text>
+                    </View>
+
+                    {isLoading ? (
+                        <ActivityIndicator size="large" color="#00E5FF" className="mt-10" />
+                    ) : evaluations.length === 0 ? (
+                        <View className="bg-impulse-gray p-8 rounded-[32px] border border-white/5 items-center mt-2">
+                            <View className="w-16 h-16 bg-white/5 rounded-full items-center justify-center mb-4">
+                                <IconSymbol name="medal.fill" size={30} color="#666" />
+                            </View>
+                            <Text className="text-white text-lg font-black text-center">Aún no hay evaluaciones</Text>
+                            <Text className="text-gray-500 text-xs text-center mt-2">Asiste a tu primera clase para que tu coach evalúe tu rendimiento y empieza a construir tu racha.</Text>
+                        </View>
+                    ) : (
+                        evaluations.map((evalData) => {
+                            const badge = getPerformanceBadge(evalData.performanceLevel);
+                            
+                            return (
+                                <View key={evalData.id} className="bg-impulse-gray p-5 rounded-3xl mb-4 border border-white/5 shadow-xl">
+                                    
+                                    {/* HEADER DE LA TARJETA */}
+                                    <View className="flex-row justify-between items-start mb-5 border-b border-white/5 pb-4">
+                                        <View className="flex-1">
+                                            <Text className="text-white font-black text-xl mb-1">{evalData.className}</Text>
+                                            <Text className="text-[#00E5FF] text-[10px] font-bold uppercase tracking-widest">
+                                                {evalData.classDate || evalData.date} • {evalData.startTime}
+                                            </Text>
+                                        </View>
+                                        <View className={`px-3 py-1.5 rounded-full border ${badge.bg} ${badge.border}`}>
+                                            <Text className={`text-[10px] font-black tracking-widest uppercase ${badge.text}`}>
+                                                {evalData.performanceLevel}
+                                            </Text>
+                                        </View>
+                                    </View>
+
+                                    {/* CUERPO: PORCENTAJE Y HÁBITOS */}
+                                    <View className="flex-row items-center justify-between">
+                                        
+                                        {/* Lista de Hábitos Evaluados */}
+                                        <View className="flex-1 pr-4">
+                                            <HabitIndicator label="Rutina completada" score={evalData.evaluation?.rutina} />
+                                            <HabitIndicator label="Cardio realizado" score={evalData.evaluation?.cardio} />
+                                            <HabitIndicator label="Técnica / Indicaciones" score={evalData.evaluation?.indicaciones} />
+                                        </View>
+
+                                        {/* Círculo de Porcentaje */}
+                                        <View 
+                                            className="w-[85px] h-[85px] rounded-full border-[5px] items-center justify-center bg-black/20" 
+                                            style={{ borderColor: badge.ring }}
+                                        >
+                                            <Text className="text-white font-black text-2xl">{evalData.compliancePercentage}%</Text>
+                                        </View>
+
+                                    </View>
+                                </View>
+                            );
+                        })
+                    )}
+                </View>
+
+            </ScrollView>
+        </SafeAreaView>
+    );
 }

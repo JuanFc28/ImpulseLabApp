@@ -1,12 +1,16 @@
 import React, { useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { validateAttendance } from "@/src/services/gymService"; // IMPORTAMOS EL SERVICIO REAL
+import { validateAttendance } from "@/src/services/gymService";
 
 export default function ScannerScreen() {
   const router = useRouter();
+  // 1. Recibimos el ID de la clase en la que está el coach actualmente
+  const { classId } = useLocalSearchParams(); 
+  
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -21,15 +25,22 @@ export default function ScannerScreen() {
     setIsProcessing(true);
 
     try {
-      // 1. Convertimos el string del QR de nuevo a un objeto JSON
       const parsedData = JSON.parse(data);
-      
-      // Soportamos las llaves de tu Ticket actual
       const uid = parsedData.userId || parsedData.uId;
       const cid = parsedData.classId || parsedData.classID || parsedData.cId;
 
       if (uid && cid) {
-        // 2. Llamada real a Firebase
+          
+        // 2. VALIDACIÓN ESTRICTA: ¿El ticket pertenece a ESTA clase?
+        if (classId && cid !== classId) {
+            setIsError(true);
+            const wrongClass = parsedData.className || "otra clase";
+            setErrorMessage(`Ticket rechazado. Este pase pertenece a ${wrongClass}, no a la clase actual.`);
+            setIsProcessing(false);
+            return;
+        }
+
+        // Si la clase coincide, validamos en Firebase
         const result = await validateAttendance(uid, cid);
 
         if (result.success) {
@@ -72,6 +83,17 @@ export default function ScannerScreen() {
 
   return (
     <View className="flex-1 bg-black">
+      
+      {/* BOTÓN FLOTANTE PARA REGRESAR A LA CLASE */}
+      <SafeAreaView className="absolute top-0 w-full z-10 px-5 pt-4">
+        <TouchableOpacity
+            onPress={() => router.back()}
+            className="w-12 h-12 bg-black/60 rounded-full items-center justify-center border border-white/20 shadow-lg"
+        >
+            <IconSymbol name="chevron.left" size={24} color="#FF9500" />
+        </TouchableOpacity>
+      </SafeAreaView>
+
       {/* CÁMARA */}
       <CameraView 
         style={StyleSheet.absoluteFillObject} 
@@ -80,7 +102,7 @@ export default function ScannerScreen() {
         barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
       />
 
-      {/* OVERLAY OSCURO CON VENTANA TRANSAPARENTE */}
+      {/* OVERLAY OSCURO */}
       <View className="flex-1 justify-center items-center bg-black/60">
         {!scanned && (
           <View className="w-64 h-64 border-2 border-orange-500/50 rounded-3xl bg-transparent items-center justify-center relative">
@@ -93,7 +115,7 @@ export default function ScannerScreen() {
         {!scanned && <Text className="text-white font-bold mt-8">Apunta al código QR del atleta</Text>}
       </View>
 
-      {/* RESULTADO DEL ESCÁNER (Aparece desde abajo) */}
+      {/* RESULTADO DEL ESCÁNER */}
       {scanned && (
         <View className="absolute bottom-0 w-full bg-impulse-dark p-8 rounded-t-[40px] border-t border-white/10 shadow-2xl">
           {isProcessing ? (
@@ -109,9 +131,14 @@ export default function ScannerScreen() {
                </View>
                <Text className="text-red-500 text-xs font-black tracking-[3px] uppercase mb-2">Acceso Denegado</Text>
                <Text className="text-white text-center font-bold mb-8 px-4">{errorMessage}</Text>
-               <TouchableOpacity onPress={resetScanner} className="w-full bg-impulse-gray border border-white/10 py-5 rounded-2xl items-center">
-                 <Text className="text-white font-black tracking-widest">VOLVER A INTENTAR</Text>
-               </TouchableOpacity>
+               <View className="flex-row gap-4 w-full">
+                   <TouchableOpacity onPress={() => router.back()} className="flex-1 bg-white/5 border border-white/10 py-5 rounded-2xl items-center">
+                     <Text className="text-white font-black tracking-widest">SALIR</Text>
+                   </TouchableOpacity>
+                   <TouchableOpacity onPress={resetScanner} className="flex-1 bg-impulse-gray border border-white/10 py-5 rounded-2xl items-center shadow-lg">
+                     <Text className="text-white font-black tracking-widest">REINTENTAR</Text>
+                   </TouchableOpacity>
+               </View>
              </View>
           ) : (
              // VISTA DE ÉXITO ✅
@@ -121,10 +148,16 @@ export default function ScannerScreen() {
                </View>
                <Text className="text-green-500 text-xs font-black tracking-[3px] uppercase mb-1">Acceso Autorizado</Text>
                <Text className="text-white text-3xl font-black mb-1">{athleteData?.name || athleteData?.userName}</Text>
-               <Text className="text-gray-400 font-medium mb-8">Clase: {athleteData?.className}</Text>
-               <TouchableOpacity onPress={resetScanner} className="w-full bg-orange-500 py-5 rounded-2xl items-center shadow-lg shadow-orange-500/30">
-                 <Text className="text-black font-black tracking-widest">SIGUIENTE ATLETA</Text>
-               </TouchableOpacity>
+               <Text className="text-gray-400 font-medium mb-8">Clase: {athleteData?.className || "Confirmada"}</Text>
+               
+               <View className="flex-row gap-4 w-full">
+                   <TouchableOpacity onPress={() => router.back()} className="flex-1 bg-white/5 border border-white/10 py-5 rounded-2xl items-center">
+                     <Text className="text-white font-black tracking-widest">VOLVER</Text>
+                   </TouchableOpacity>
+                   <TouchableOpacity onPress={resetScanner} className="flex-2 bg-orange-500 py-5 px-8 rounded-2xl items-center shadow-lg shadow-orange-500/30">
+                     <Text className="text-black font-black tracking-widest">SIGUIENTE</Text>
+                   </TouchableOpacity>
+               </View>
              </View>
           )}
         </View>
