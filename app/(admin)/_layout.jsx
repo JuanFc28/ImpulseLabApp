@@ -1,53 +1,63 @@
 import { Tabs } from 'expo-router';
 import React from 'react';
+import { Platform } from 'react-native';
+
+import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 
 export default function AdminLayout() {
-  return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: '#10B981', // Esmeralda Admin
-        tabBarStyle: {
-          backgroundColor: '#0A0A0A',
-          borderTopColor: '#222222',
-        },
-      }}>
-      
-      {/* 1. DASHBOARD - Visible */}
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Panel',
-          tabBarIcon: ({ color }) => <IconSymbol size={24} name="house.fill" color={color} />,
-        }}
-      />
+    return (
+        <Tabs
+            screenOptions={{
+                headerShown: false,
+                tabBarActiveTintColor: '#10B981', // Verde Esmeralda
+                tabBarInactiveTintColor: '#666666',
+                tabBarButton: HapticTab,
+                tabBarStyle: {
+                    backgroundColor: '#0A0A0A',
+                    borderTopWidth: 1,
+                    borderTopColor: '#222222',
+                    height: Platform.OS === 'ios' ? 85 : 65,
+                    paddingBottom: Platform.OS === 'ios' ? 25 : 10,
+                    paddingTop: 10,
+                },
+            }}
+        >
+            {/* PESTAÑA 1: HORARIOS */}
+            <Tabs.Screen
+                name="index"
+                options={{
+                    title: 'Horarios',
+                    tabBarIcon: ({ color }) => (
+                        <IconSymbol size={24} name="calendar" color={color} />
+                    ),
+                }}
+            />
 
-      {/* 2. CLASES - OCULTO DEL TAB BAR ✅ */}
-      <Tabs.Screen
-        name="classes"
-        options={{
-          href: null, // <--- Esta es la clave: la ruta existe pero el botón desaparece
-        }}
-      />
+            {/* PESTAÑA 2: COMUNIDAD */}
+            <Tabs.Screen
+                name="users"
+                options={{
+                    title: 'Comunidad',
+                    tabBarIcon: ({ color }) => (
+                        <IconSymbol size={24} name="person.3.fill" color={color} />
+                    ),
+                }}
+            />
 
-      {/* 3. USUARIOS - Visible */}
-      <Tabs.Screen
-        name="users"
-        options={{
-          title: 'Staff/Atletas',
-          tabBarIcon: ({ color }) => <IconSymbol size={24} name="person.2.fill" color={color} />,
-        }}
-      />
-
-      {/* 4. FINANZAS - Visible */}
-      <Tabs.Screen
-        name="finances"
-        options={{
-          title: 'Finanzas',
-          tabBarIcon: ({ color }) => <IconSymbol size={24} name="dollarsign.circle.fill" color={color} />,
-        }}
-      />
-    </Tabs>
-  );
+            {/* PESTAÑA 3: PERFIL */}
+            <Tabs.Screen
+                name="profile"
+                options={{
+                    title: 'Perfil',
+                    tabBarIcon: ({ color }) => (
+                        <IconSymbol size={24} name="person.crop.circle.fill" color={color} />
+                    ),
+                }}
+            />
+            
+            {/* Si aún tienes el archivo classes.jsx, lo ocultamos para que no salga como una 4ta pestaña */}
+            <Tabs.Screen name="classes" options={{ href: null }} />
+        </Tabs>
+    );
 }

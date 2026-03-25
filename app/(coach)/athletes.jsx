@@ -1,106 +1,114 @@
-import React, { useState } from "react";
-import { ScrollView, Text, TextInput, TouchableOpacity, View } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, Text, ScrollView, ActivityIndicator, Alert } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { IconSymbol } from "@/components/ui/icon-symbol";
+import { db } from "@/src/config/firebase";
+import { collection, getDocs, query, where } from "firebase/firestore";
 
-export default function AthletesScreen() {
-  const [activeFilter, setActiveFilter] = useState("Activos");
+// Mantenemos el estilo Cyan para los Atletas (consistencia visual con el resto de la app)
+const athleteStyle = { 
+    text: "ATLETA", 
+    color: "#00E5FF", 
+    bg: "rgba(0, 229, 255, 0.1)", 
+    border: "rgba(0, 229, 255, 0.3)" 
+};
 
-  // Mock de datos de los atletas del gimnasio
-  const athletesList = [
-    { id: 1, name: "Roberto M.", plan: "Ilimitado", streak: 4, active: true },
-    { id: 2, name: "Ana Paula", plan: "3x Semana", streak: 12, active: true },
-    { id: 3, name: "Luis García", plan: "Ilimitado", streak: 0, active: false },
-    { id: 4, name: "Carlos R.", plan: "Drop-in", streak: 1, active: true },
-    { id: 5, name: "Sofía T.", plan: "Ilimitado", streak: 8, active: true },
-  ];
+export default function CoachAthletesScreen() {
+    const [athletes, setAthletes] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-  const filters = ["Todos", "Activos", "Inactivos", "Nuevos"];
+    const fetchAthletes = async () => {
+        setIsLoading(true);
+        try {
+            // Consulta directa: Solo traemos a los usuarios con rol de "user"
+            const q = query(collection(db, "users"), where("role", "==", "user"));
+            const querySnapshot = await getDocs(q);
+            
+            const loadedAthletes = querySnapshot.docs.map(doc => ({ 
+                id: doc.id, 
+                ...doc.data() 
+            }));
+            
+            // Ordenamos alfabéticamente
+            loadedAthletes.sort((a, b) => {
+                return (a.name || a.email || "").toLowerCase().localeCompare((b.name || b.email || "").toLowerCase());
+            });
 
-  return (
-    <View className="flex-1 bg-impulse-dark relative">
-      <View className="px-5 pt-16 pb-4 bg-impulse-dark/90 z-10">
-        <Text className="text-white text-3xl font-black tracking-tight mb-4">Atletas</Text>
-        
-        {/* BARRA DE BÚSQUEDA */}
-        <View className="flex-row items-center bg-white/5 border border-white/10 rounded-2xl px-4 py-3">
-          <IconSymbol name="magnifyingglass" size={20} color="#888" />
-          <TextInput 
-            placeholder="Buscar por nombre..."
-            placeholderTextColor="#888"
-            className="flex-1 text-white ml-3 font-medium"
-            keyboardAppearance="dark"
-          />
-        </View>
-      </View>
+            setAthletes(loadedAthletes);
+        } catch (error) {
+            console.error("Error al cargar atletas:", error);
+            Alert.alert("Error", "No se pudo cargar la lista de alumnos.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
-      <ScrollView 
-        className="flex-1"
-        showsVerticalScrollIndicator={false}
-        contentContainerClassName="pb-32 pt-2"
-      >
-        {/* FILTROS RÁPIDOS */}
-        <ScrollView 
-          horizontal 
-          showsHorizontalScrollIndicator={false} 
-          className="mb-6 px-5"
-        >
-          <View className="flex-row gap-2 pr-10">
-            {filters.map((filter) => {
-              const isActive = activeFilter === filter;
-              return (
-                <TouchableOpacity
-                  key={filter}
-                  onPress={() => setActiveFilter(filter)}
-                  className={`px-5 py-2.5 rounded-full border ${
-                    isActive 
-                      ? "bg-orange-500/20 border-orange-500/50" 
-                      : "bg-transparent border-white/5"
-                  }`}
-                >
-                  <Text className={`text-xs font-bold ${isActive ? "text-orange-500" : "text-gray-500"}`}>
-                    {filter}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </ScrollView>
+    useEffect(() => {
+        fetchAthletes();
+    }, []);
 
-        {/* LISTA DE ATLETAS */}
-        <View className="px-5">
-          <Text className="text-white text-lg font-black mb-4">Directorio ({athletesList.length})</Text>
-          
-          {athletesList.map((athlete) => (
-            <TouchableOpacity 
-              key={athlete.id} 
-              activeOpacity={0.7}
-              className="flex-row items-center bg-impulse-gray border border-white/5 rounded-3xl p-4 mb-3"
-            >
-              {/* Avatar */}
-              <View className="w-12 h-12 rounded-full bg-white/5 items-center justify-center mr-4 relative">
-                <Text className="text-white font-black text-lg">{athlete.name.charAt(0)}</Text>
-                {/* Indicador de Status */}
-                <View className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-impulse-gray ${athlete.active ? 'bg-green-500' : 'bg-red-500'}`} />
-              </View>
-
-              {/* Info principal */}
-              <View className="flex-1">
-                <Text className="text-white font-black text-base">{athlete.name}</Text>
-                <Text className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">{athlete.plan}</Text>
-              </View>
-
-              {/* Racha (Streak) */}
-              <View className="items-end">
-                <View className="flex-row items-center bg-orange-500/10 px-2 py-1 rounded-lg">
-                  <IconSymbol name="flame.fill" size={12} color="#FF9500" />
-                  <Text className="text-orange-500 font-black text-xs ml-1">{athlete.streak}</Text>
+    return (
+        <SafeAreaView className="flex-1 bg-impulse-dark">
+            <View className="flex-1 px-5 pt-6">
+                
+                {/* HEADER CON ESPACIO SEGURO */}
+                <View className="mb-8 flex-row justify-between items-end">
+                    <View>
+                        <Text className="text-white text-3xl font-black">Atletas</Text>
+                        <Text className="text-gray-500 text-sm">Directorio de alumnos</Text>
+                    </View>
+                    {/* El contador usa el color naranja del coach */}
+                    <Text className="text-orange-500 font-black text-xl">
+                        {athletes.length} <Text className="text-gray-500 text-xs">total</Text>
+                    </Text>
                 </View>
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
 
-      </ScrollView>
-    </View>
-  );
+                {/* LISTA DE ATLETAS */}
+                {isLoading ? (
+                    <View className="flex-1 justify-center items-center">
+                        <ActivityIndicator size="large" color="#FF9500" />
+                    </View>
+                ) : athletes.length === 0 ? (
+                    <View className="flex-1 justify-center items-center">
+                        <IconSymbol name="person.crop.circle.badge.xmark" size={48} color="#444" />
+                        <Text className="text-gray-500 font-bold mt-4">No se encontraron alumnos registrados.</Text>
+                    </View>
+                ) : (
+                    <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
+                        {athletes.map((user) => (
+                            <View key={user.id} className="bg-impulse-gray p-4 rounded-3xl mb-3 border border-white/5 flex-row items-center">
+                                {/* AVATAR */}
+                                <View 
+                                    className="w-12 h-12 rounded-full items-center justify-center mr-4 border" 
+                                    style={{ backgroundColor: athleteStyle.bg, borderColor: athleteStyle.border }}
+                                >
+                                    <IconSymbol name="person.fill" size={20} color={athleteStyle.color} />
+                                </View>
+                                
+                                {/* INFO */}
+                                <View className="flex-1">
+                                    <Text className="text-white font-black text-lg mb-0.5">
+                                        {user.name || "Atleta sin nombre"}
+                                    </Text>
+                                    <Text className="text-gray-400 text-xs">
+                                        {user.email || "Sin correo"}
+                                    </Text>
+                                </View>
+                                
+                                {/* ETIQUETA */}
+                                <View 
+                                    className="px-3 py-1.5 rounded-full border" 
+                                    style={{ backgroundColor: athleteStyle.bg, borderColor: athleteStyle.border }}
+                                >
+                                    <Text className="text-[10px] font-black tracking-widest" style={{ color: athleteStyle.color }}>
+                                        {athleteStyle.text}
+                                    </Text>
+                                </View>
+                            </View>
+                        ))}
+                    </ScrollView>
+                )}
+            </View>
+        </SafeAreaView>
+    );
 }

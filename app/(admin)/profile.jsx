@@ -4,24 +4,17 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuth } from "@/src/context/AuthContext";
 
-export default function UserProfileScreen() {
+export default function AdminProfileScreen() {
   const { user, logout } = useAuth();
 
   const handleLogout = () => {
-    Alert.alert(
-      "Cerrar Sesión",
-      "¿Estás seguro de que deseas salir de tu cuenta?",
-      [
+    Alert.alert("Cerrar Sesión", "¿Deseas salir del panel de administración?", [
         { text: "Cancelar", style: "cancel" },
         { 
           text: "Salir", 
           style: "destructive", 
           onPress: async () => {
-            try {
-              await logout();
-            } catch (error) {
-              Alert.alert("Error", "No se pudo cerrar la sesión.");
-            }
+            try { await logout(); } catch (error) { Alert.alert("Error", "No se pudo cerrar sesión."); }
           } 
         },
       ]
@@ -30,6 +23,7 @@ export default function UserProfileScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-impulse-dark">
+      {/* ScrollView con flexGrow y justifyContent center para alinear todo verticalmente */}
       <ScrollView 
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingBottom: 40 }}
@@ -37,17 +31,16 @@ export default function UserProfileScreen() {
         
         {/* INFO DE USUARIO */}
         <View className="items-center mb-10">
-          <View className="w-24 h-24 rounded-full border-4 border-[#00E5FF] p-1 mb-4 shadow-xl shadow-[#00E5FF]/20">
+          <View className="w-24 h-24 rounded-full border-4 border-emerald-500 p-1 mb-4 shadow-xl shadow-emerald-500/20">
             <View className="flex-1 rounded-full bg-white/10 items-center justify-center overflow-hidden">
-               <IconSymbol name="person.crop.circle.fill" size={60} color="#00E5FF" />
+               <IconSymbol name="person.crop.circle.fill" size={60} color="#10B981" />
             </View>
           </View>
-          
           <Text className="text-white text-2xl" style={{ fontWeight: '900' }}>
-            {user?.displayName || "Atleta"}
+            {user?.displayName || "Administrador"}
           </Text>
           <Text className="text-gray-500 uppercase tracking-widest text-[10px] mt-1" style={{ fontWeight: 'bold' }}>
-            Miembro Impulse
+            Dueño / Admin
           </Text>
         </View>
 
@@ -65,7 +58,7 @@ export default function UserProfileScreen() {
             <IconSymbol name="shield.fill" size={18} color="#666" />
             <View className="ml-4">
               <Text className="text-gray-500 text-[10px] uppercase" style={{ fontWeight: '900' }}>Nivel de Acceso</Text>
-              <Text className="text-[#00E5FF]" style={{ fontWeight: 'bold' }}>Atleta</Text>
+              <Text className="text-emerald-500" style={{ fontWeight: 'bold' }}>Control Total</Text>
             </View>
           </View>
         </View>

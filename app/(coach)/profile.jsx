@@ -1,96 +1,90 @@
 import React from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { View, Text, TouchableOpacity, Alert, ScrollView } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { useAuth } from "../../src/context/AuthContext";
+import { useAuth } from "@/src/context/AuthContext";
 
 export default function CoachProfileScreen() {
   const { user, logout } = useAuth();
-  const coachName = user?.displayName || "Coach";
+
+  const handleLogout = () => {
+    Alert.alert(
+      "Cerrar Sesión",
+      "¿Estás seguro de que deseas salir de tu cuenta?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        { 
+          text: "Salir", 
+          style: "destructive", 
+          onPress: async () => {
+            try {
+              await logout();
+            } catch (error) {
+              Alert.alert("Error", "No se pudo cerrar la sesión.");
+            }
+          } 
+        },
+      ]
+    );
+  };
 
   return (
-    <View className="flex-1 bg-impulse-dark">
+    <SafeAreaView className="flex-1 bg-impulse-dark">
       <ScrollView 
-        className="flex-1 px-5 pt-16"
         showsVerticalScrollIndicator={false}
-        contentContainerClassName="pb-32"
+        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingBottom: 40 }}
       >
-        {/* HEADER DE PERFIL */}
-        <View className="items-center mb-10 mt-4">
-          <View className="w-28 h-28 rounded-full border-4 border-orange-500 p-1 mb-4 shadow-xl shadow-orange-500/20">
+        
+        {/* INFO DE USUARIO */}
+        <View className="items-center mb-10">
+          <View className="w-24 h-24 rounded-full border-4 border-orange-500 p-1 mb-4 shadow-xl shadow-orange-500/20">
             <View className="flex-1 rounded-full bg-white/10 items-center justify-center overflow-hidden">
-               <IconSymbol name="person.crop.circle" size={60} color="#FF9500" />
+               <IconSymbol name="person.crop.circle.fill" size={60} color="#FF9500" />
             </View>
           </View>
-          <Text className="text-white text-3xl font-black">{coachName}</Text>
-          <Text className="text-gray-400 text-xs font-bold tracking-[3px] uppercase mt-1">Head Coach</Text>
-        </View>
-
-        {/* ESTADÍSTICAS DEL MES */}
-        <View className="flex-row gap-4 mb-10">
-          <View className="flex-1 bg-white/5 border border-white/10 rounded-3xl p-5 items-center">
-            <Text className="text-gray-400 text-[10px] font-bold tracking-widest mb-2">CLASES MES</Text>
-            <View className="flex-row items-baseline">
-              <Text className="text-white text-3xl font-black">48</Text>
-            </View>
-          </View>
-
-          <View className="flex-1 bg-white/5 border border-white/10 rounded-3xl p-5 items-center">
-            <Text className="text-gray-400 text-[10px] font-bold tracking-widest mb-2">RATING AVG</Text>
-            <View className="flex-row items-center">
-               <Text className="text-white text-3xl font-black mr-1">4.9</Text>
-               <IconSymbol name="star.fill" size={16} color="#FF9500" />
-            </View>
-          </View>
-        </View>
-
-        {/* MENÚ DE AJUSTES */}
-        <Text className="text-white text-lg font-black mb-4">Ajustes de Cuenta</Text>
-        <View className="bg-[#111] border border-white/5 rounded-[32px] p-4 mb-8">
           
-          <TouchableOpacity className="flex-row items-center p-3 border-b border-white/5">
-            <View className="bg-white/5 w-10 h-10 rounded-xl items-center justify-center mr-4">
-              <IconSymbol name="person.fill" size={18} color="#FFF" />
-            </View>
-            <View className="flex-1">
-              <Text className="text-white font-bold">Editar Perfil</Text>
-            </View>
-            <IconSymbol name="chevron.right" size={16} color="#666" />
-          </TouchableOpacity>
-
-          <TouchableOpacity className="flex-row items-center p-3 border-b border-white/5">
-            <View className="bg-white/5 w-10 h-10 rounded-xl items-center justify-center mr-4">
-              <IconSymbol name="calendar" size={18} color="#FFF" />
-            </View>
-            <View className="flex-1">
-              <Text className="text-white font-bold">Disponibilidad</Text>
-            </View>
-            <IconSymbol name="chevron.right" size={16} color="#666" />
-          </TouchableOpacity>
-
-          <TouchableOpacity className="flex-row items-center p-3">
-            <View className="bg-white/5 w-10 h-10 rounded-xl items-center justify-center mr-4">
-              <IconSymbol name="bell.fill" size={18} color="#FFF" />
-            </View>
-            <View className="flex-1">
-              <Text className="text-white font-bold">Notificaciones</Text>
-            </View>
-            <IconSymbol name="chevron.right" size={16} color="#666" />
-          </TouchableOpacity>
+          <Text className="text-white text-2xl" style={{ fontWeight: '900' }}>
+            {user?.displayName || "Coach"}
+          </Text>
+          <Text className="text-gray-500 uppercase tracking-widest text-[10px] mt-1" style={{ fontWeight: 'bold' }}>
+            Entrenador / Staff
+          </Text>
         </View>
 
-        {/* BOTÓN DE CERRAR SESIÓN */}
+        {/* SECCIÓN DE AJUSTES / INFO */}
+        <View className="bg-impulse-gray rounded-[32px] p-2 border border-white/5 mb-8">
+          <View className="p-4 flex-row items-center border-b border-white/5">
+            <IconSymbol name="envelope.fill" size={18} color="#666" />
+            <View className="ml-4">
+              <Text className="text-gray-500 text-[10px] uppercase" style={{ fontWeight: '900' }}>Correo</Text>
+              <Text className="text-white" style={{ fontWeight: 'bold' }}>{user?.email}</Text>
+            </View>
+          </View>
+
+          <View className="p-4 flex-row items-center">
+            <IconSymbol name="shield.fill" size={18} color="#666" />
+            <View className="ml-4">
+              <Text className="text-gray-500 text-[10px] uppercase" style={{ fontWeight: '900' }}>Nivel de Acceso</Text>
+              <Text className="text-orange-500" style={{ fontWeight: 'bold' }}>Coach</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* BOTÓN CERRAR SESIÓN */}
         <TouchableOpacity 
-          onPress={logout}
+          onPress={handleLogout}
           activeOpacity={0.8}
-          className="bg-red-500/10 border-2 border-red-500/30 py-5 rounded-2xl flex-row justify-center items-center mb-8"
+          className="bg-red-500/10 border border-red-500/30 py-5 rounded-3xl flex-row justify-center items-center"
         >
-          <IconSymbol name="arrow.right.square.fill" size={20} color="#EF4444" />
-          <Text className="text-red-500 font-black text-base tracking-widest ml-3">
-            CERRAR SESIÓN
-          </Text>
+          <IconSymbol name="rectangle.portrait.and.arrow.right" size={20} color="#EF4444" style={{marginRight: 10}} />
+          <Text className="text-red-500 tracking-widest" style={{ fontWeight: '900' }}>CERRAR SESIÓN</Text>
         </TouchableOpacity>
 
+        <Text className="text-center text-gray-700 text-[10px] mt-8 uppercase tracking-[2px]" style={{ fontWeight: 'bold' }}>
+          Impulse Lab App v1.0.0
+        </Text>
+
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
