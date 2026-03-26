@@ -3,5 +3,5 @@ const { withNativeWind } = require("nativewind/metro");
 
 const config = getDefaultConfig(__dirname);
 
-// Aquí le decimos a Metro que use NativeWind y dónde está tu CSS
+// Usar NativeWind en el CSS
 module.exports = withNativeWind(config, { input: "./src/styles/global.css" });

@@ -5,20 +5,19 @@ import { useRouter } from "expo-router";
 import { useAuth } from "@/src/context/AuthContext";
 import { db } from "@/src/config/firebase";
 import { collection, query, where, getDocs } from "firebase/firestore";
-import { bookClass } from "@/src/services/gymService"; // Asegúrate de que la ruta sea correcta
+import { bookClass } from "@/src/services/gymService";
 
 export default function ExploreScreen() {
   const router = useRouter();
   const { user } = useAuth();
   
   const [weekDays, setWeekDays] = useState([]);
-  const [selectedDateISO, setSelectedDateISO] = useState(""); // Ej. "2026-03-24"
+  const [selectedDateISO, setSelectedDateISO] = useState("");
   
   const [classes, setClasses] = useState([]);
-  const [myReservations, setMyReservations] = useState([]); // Array de classID
+  const [myReservations, setMyReservations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 1. Generar la semana actual y el formato de fecha para Firebase
   useEffect(() => {
     const days = [];
     const today = new Date();
@@ -30,7 +29,6 @@ export default function ExploreScreen() {
     const labels = ['LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'];
     
     for (let i = 0; i < 6; i++) {
-      // Crear string ISO manual (YYYY-MM-DD) para evitar problemas de zona horaria
       const year = current.getFullYear();
       const month = String(current.getMonth() + 1).padStart(2, '0');
       const day = String(current.getDate()).padStart(2, '0');
@@ -42,7 +40,6 @@ export default function ExploreScreen() {
         isoDate: isoDate
       });
       
-      // Si es hoy, lo seleccionamos por defecto
       if (today.getDate() === current.getDate()) {
         setSelectedDateISO(isoDate);
       }
@@ -52,22 +49,18 @@ export default function ExploreScreen() {
     setWeekDays(days);
   }, []);
 
-  // 2. Traer clases y reservas desde Firebase cuando cambia el día
   useEffect(() => {
     if (!selectedDateISO || !user) return;
 
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        // A. Traer las clases de ese día específico
         const qClasses = query(collection(db, "classes"), where("date", "==", selectedDateISO));
         const classSnap = await getDocs(qClasses);
         const loadedClasses = classSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         
-        // B. Traer las reservaciones de este usuario para saber cuáles botones poner en "VER TICKET"
         const qRes = query(collection(db, "reservations"), where("userId", "==", user.uid));
         const resSnap = await getDocs(qRes);
-        // Extraemos solo los IDs de las clases reservadas (Usando tu campo classID)
         const bookedIds = resSnap.docs.map(doc => doc.data().classID);
 
         setClasses(loadedClasses);
@@ -82,7 +75,7 @@ export default function ExploreScreen() {
     fetchData();
   }, [selectedDateISO, user]);
 
-  // 3. Lógica Real de Reserva
+  // Lógica de Reserva
   const handleReserve = (classItem) => {
     if (classItem.availableSpots <= 0) {
       Alert.alert("Lista de Espera", "Esta clase está llena. Te hemos añadido a la lista de espera.");
@@ -99,10 +92,8 @@ export default function ExploreScreen() {
           onPress: async () => {
             try {
               const userName = user?.displayName || "Atleta";
-              // Llamamos al servicio real
               await bookClass(user.uid, classItem, userName);
               
-              // Actualizamos el estado local para que el botón cambie de inmediato
               setMyReservations([...myReservations, classItem.id]);
               
               Alert.alert("¡Listo!", "Tu lugar está asegurado.");
@@ -119,7 +110,7 @@ export default function ExploreScreen() {
     <View className="flex-1 bg-impulse-dark pt-14 px-5">
       <Text className="text-white text-3xl font-black mb-6">Explorar Clases</Text>
       
-      {/* CALENDARIO DE LA SEMANA */}
+      {/* CALENDARIO */}
       <View className="flex-row justify-between mb-8">
         {weekDays.map((day, index) => {
           const isSelected = day.isoDate === selectedDateISO;

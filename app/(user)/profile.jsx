@@ -35,7 +35,7 @@ export default function UserProfileScreen() {
         contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingBottom: 40 }}
       >
         
-        {/* INFO DE USUARIO */}
+        {/* USUARIO */}
         <View className="items-center mb-10">
           <View className="w-24 h-24 rounded-full border-4 border-[#00E5FF] p-1 mb-4 shadow-xl shadow-[#00E5FF]/20">
             <View className="flex-1 rounded-full bg-white/10 items-center justify-center overflow-hidden">
@@ -51,7 +51,7 @@ export default function UserProfileScreen() {
           </Text>
         </View>
 
-        {/* SECCIÓN DE AJUSTES / INFO */}
+        {/* INFO */}
         <View className="bg-impulse-gray rounded-[32px] p-2 border border-white/5 mb-8">
           <View className="p-4 flex-row items-center border-b border-white/5">
             <IconSymbol name="envelope.fill" size={18} color="#666" />
@@ -70,7 +70,7 @@ export default function UserProfileScreen() {
           </View>
         </View>
 
-        {/* BOTÓN CERRAR SESIÓN */}
+        {/* CERRAR SESIÓN */}
         <TouchableOpacity 
           onPress={handleLogout}
           activeOpacity={0.8}

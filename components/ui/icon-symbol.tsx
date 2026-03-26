@@ -21,16 +21,13 @@ const MAPPING = {
   "paperplane.fill": "send",
   "chevron.left.forwardslash.chevron.right": "code",
   "chevron.right": "chevron-right",
-  // --- Navegación Principal y Login ---
   magnifyingglass: "search",
   "person.crop.circle.fill": "person",
   "bolt.fill": "bolt",
 
-  // --- Navegación del Coach ---
-  calendar: "calendar-today", // Para la Agenda
-  "person.3.fill": "groups", // Para la lista de Atletas
+  calendar: "calendar-today",
+  "person.3.fill": "groups",
 
-  // --- Íconos de las pantallas del Usuario (Dashboard y Clases) ---
   "dumbbell.fill": "fitness-center",
   checkmark: "check",
   xmark: "close",
@@ -49,7 +46,6 @@ const MAPPING = {
   "shield.fill": "security",
   "rectangle.portrait.and.arrow.right": "logout",
 
-  // --- Íconos comunes para el Admin (Por si los llegas a usar) ---
   "gearshape.fill": "settings",
   "plus.circle.fill": "add-circle",
   "list.bullet": "format-list-bulleted",

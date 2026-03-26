@@ -91,7 +91,7 @@ export default function CoachHomeScreen() {
                 showsVerticalScrollIndicator={false}
                 contentContainerClassName="pb-[120px]"
             >
-                {/* HEADER MODO COACH */}
+                {/* HEADER */}
                 <View className="flex-row justify-between items-center mb-8">
                     <View className="flex-row items-center">
                         <View className="w-12 h-12 rounded-full border-2 border-orange-500 p-[2px] mr-3">
@@ -248,7 +248,7 @@ export default function CoachHomeScreen() {
                 </View>
             </ScrollView>
 
-            {/* BOTÓN FLOTANTE: PASAR LISTA */}
+            {/* PASAR LISTA */}
             <View className="absolute bottom-10 left-6 right-6">
                 <TouchableOpacity
                     activeOpacity={0.9}

@@ -28,7 +28,6 @@ export default function ManageClassesScreen() {
     const [modalVisible, setModalVisible] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
 
-    // Estados del Formulario
     const [className, setClassName] = useState("");
     const [selectedCoach, setSelectedCoach] = useState(null);
     const [classDate, setClassDate] = useState("");
@@ -152,7 +151,6 @@ export default function ManageClassesScreen() {
         <SafeAreaView className="flex-1 bg-impulse-dark">
             <View className="flex-1 px-5 pt-6">
                 
-                {/* HEADER CON ESPACIO SEGURO */}
                 <View className="flex-row justify-between items-center mb-8">
                     <View>
                         <Text className="text-white text-3xl font-black">Horarios</Text>
@@ -180,7 +178,7 @@ export default function ManageClassesScreen() {
                 ) : (
                     <ScrollView
                         showsVerticalScrollIndicator={false}
-                        contentContainerStyle={{ paddingBottom: 120 }} // Más espacio en el fondo para la tab bar
+                        contentContainerStyle={{ paddingBottom: 120 }}
                     >
                         {classes.map((item) => (
                             <View key={item.id} className="bg-impulse-gray p-5 rounded-3xl mb-4 border border-white/5 flex-row justify-between items-center">

@@ -8,7 +8,6 @@ import { validateAttendance } from "@/src/services/gymService";
 
 export default function ScannerScreen() {
   const router = useRouter();
-  // 1. Recibimos el ID de la clase en la que está el coach actualmente
   const { classId } = useLocalSearchParams(); 
   
   const [permission, requestPermission] = useCameraPermissions();
@@ -31,7 +30,6 @@ export default function ScannerScreen() {
 
       if (uid && cid) {
           
-        // 2. VALIDACIÓN ESTRICTA: ¿El ticket pertenece a ESTA clase?
         if (classId && cid !== classId) {
             setIsError(true);
             const wrongClass = parsedData.className || "otra clase";
@@ -40,7 +38,7 @@ export default function ScannerScreen() {
             return;
         }
 
-        // Si la clase coincide, validamos en Firebase
+        // Validacion en Firebase
         const result = await validateAttendance(uid, cid);
 
         if (result.success) {
@@ -84,7 +82,7 @@ export default function ScannerScreen() {
   return (
     <View className="flex-1 bg-black">
       
-      {/* BOTÓN FLOTANTE PARA REGRESAR A LA CLASE */}
+      {/* BOTÓN REGRESAR */}
       <SafeAreaView className="absolute top-0 w-full z-10 px-5 pt-4">
         <TouchableOpacity
             onPress={() => router.back()}
@@ -102,7 +100,6 @@ export default function ScannerScreen() {
         barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
       />
 
-      {/* OVERLAY OSCURO */}
       <View className="flex-1 justify-center items-center bg-black/60">
         {!scanned && (
           <View className="w-64 h-64 border-2 border-orange-500/50 rounded-3xl bg-transparent items-center justify-center relative">
@@ -115,7 +112,6 @@ export default function ScannerScreen() {
         {!scanned && <Text className="text-white font-bold mt-8">Apunta al código QR del atleta</Text>}
       </View>
 
-      {/* RESULTADO DEL ESCÁNER */}
       {scanned && (
         <View className="absolute bottom-0 w-full bg-impulse-dark p-8 rounded-t-[40px] border-t border-white/10 shadow-2xl">
           {isProcessing ? (
@@ -124,7 +120,7 @@ export default function ScannerScreen() {
                <Text className="text-gray-400 font-bold mt-4 uppercase tracking-widest text-xs">Validando en base de datos...</Text>
              </View>
           ) : isError ? (
-             // VISTA DE ERROR ❌
+             // ERROR
              <View className="items-center">
                <View className="w-20 h-20 bg-red-500/20 rounded-full items-center justify-center mb-4 border-2 border-red-500/50">
                   <IconSymbol name="xmark" size={40} color="#EF4444" />
@@ -141,7 +137,7 @@ export default function ScannerScreen() {
                </View>
              </View>
           ) : (
-             // VISTA DE ÉXITO ✅
+             // ÉXITO
              <View className="items-center">
                <View className="w-20 h-20 bg-green-500/20 rounded-full items-center justify-center mb-4 border-2 border-green-500/50">
                   <IconSymbol name="checkmark" size={40} color="#10B981" />

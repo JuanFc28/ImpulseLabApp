@@ -20,7 +20,6 @@ export default function CoachLayout() {
           borderTopWidth: 1,
           borderTopColor: "#222222",
           height: 60 + insets.bottom,
-          // Empuja los íconos hacia arriba si existen botones virtuales en la pantalla
           paddingBottom: insets.bottom > 0 ? insets.bottom : 10,
           paddingTop: 10,
         },

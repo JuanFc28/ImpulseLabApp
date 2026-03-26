@@ -43,7 +43,6 @@ export default function ClassDetailScreen() {
             try {
                 if (!querySnapshot || !querySnapshot.docs) return;
 
-                // Reducción súper segura: Ignoramos cualquier doc corrupto
                 const loadedReservations = querySnapshot.docs.reduce((acc, currentDoc) => {
                     if (currentDoc && currentDoc.id && currentDoc.data) {
                         acc.push({ id: currentDoc.id, ...currentDoc.data() });
@@ -124,7 +123,6 @@ export default function ClassDetailScreen() {
         );
     };
 
-    // Filtro seguro por si algún objeto viene mal formado
     const attendedCount = reservations?.filter(r => r && r.status === "attended").length || 0;
 
     return (
@@ -162,7 +160,6 @@ export default function ClassDetailScreen() {
                     <Text className="text-gray-500 text-center mt-4">Nadie ha reservado aún.</Text>
                 ) : (
                     reservations?.map((item, index) => {
-                        // Si el item es nulo, lo ignoramos de la pantalla
                         if (!item) return null;
 
                         const attended = item.status === "attended";
@@ -170,7 +167,6 @@ export default function ClassDetailScreen() {
 
                         return (
                             <TouchableOpacity 
-                                // Usamos un fallback en el ID por si Firebase lo manda corrupto
                                 key={item.id || `res-${index}`} 
                                 activeOpacity={0.8}
                                 onPress={() => openEvaluation(item)}
@@ -207,9 +203,8 @@ export default function ClassDetailScreen() {
                 </TouchableOpacity>
             </View>
 
-            {/* MODAL DE EVALUACIÓN (Se mantiene idéntico) */}
+            {/* EVALUACIÓN */}
             <Modal visible={evalModalVisible} animationType="slide" transparent={true}>
-                {/* ... Código del modal idéntico al anterior ... */}
                  <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1 justify-end bg-black/80">
                     <View className="bg-impulse-gray p-6 pt-8 rounded-t-[40px] border-t border-white/10">
                         <View className="w-12 h-1.5 bg-white/20 rounded-full self-center mb-6 absolute top-4" />
@@ -217,7 +212,7 @@ export default function ClassDetailScreen() {
                         <Text className="text-gray-500 text-[10px] font-black uppercase tracking-widest text-center">Evaluación de Desempeño</Text>
                         <Text className="text-white text-2xl font-black text-center mb-8">{selectedReservation?.userName}</Text>
 
-                        {/* HÁBITO 1 */}
+                        {/* EVALUACIÓN 1 */}
                         <View className="mb-6">
                             <Text className="text-white font-bold mb-3 ml-1">Completó la rutina asignada</Text>
                             <View className="flex-row justify-between">
@@ -227,7 +222,7 @@ export default function ClassDetailScreen() {
                             </View>
                         </View>
 
-                        {/* HÁBITO 2 */}
+                        {/* EVALUACIÓN 2 */}
                         <View className="mb-6">
                             <Text className="text-white font-bold mb-3 ml-1">Realizó el cardio correspondiente</Text>
                             <View className="flex-row justify-between">
@@ -237,7 +232,7 @@ export default function ClassDetailScreen() {
                             </View>
                         </View>
 
-                        {/* HÁBITO 3 */}
+                        {/* EVALUACIÓN 3 */}
                         <View className="mb-8">
                             <Text className="text-white font-bold mb-3 ml-1">Cumplió indicaciones y técnica</Text>
                             <View className="flex-row justify-between">
@@ -247,7 +242,6 @@ export default function ClassDetailScreen() {
                             </View>
                         </View>
 
-                        {/* BOTONES */}
                         <View className="flex-row gap-4 mb-4">
                             <TouchableOpacity onPress={() => setEvalModalVisible(false)} className="flex-1 py-4 justify-center items-center bg-white/5 rounded-2xl border border-white/10">
                                 <Text className="text-white font-bold tracking-widest">CANCELAR</Text>

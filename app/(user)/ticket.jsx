@@ -8,9 +8,8 @@ import { useAuth } from "@/src/context/AuthContext";
 export default function TicketScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const params = useLocalSearchParams(); // Recibe los datos de la reserva
+  const params = useLocalSearchParams();
 
-  // Si no hay params (entrada directa), usamos valores por defecto o de la base de datos
   const ticketInfo = {
     userId: user?.uid || "invitado",
     userName: user?.displayName || "Atleta Impulse",
@@ -20,7 +19,6 @@ export default function TicketScreen() {
     coach: params.coach || "Staff"
   };
 
-  // El payload que leerá el Scanner del Coach
   const qrPayload = JSON.stringify({
     uId: ticketInfo.userId,
     cId: ticketInfo.classId,

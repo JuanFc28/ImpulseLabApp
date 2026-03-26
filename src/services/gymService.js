@@ -12,7 +12,7 @@ import {
 } from "firebase/firestore";
 import { deleteDoc } from "firebase/firestore";
 
-// 1. PARA EL ADMIN: Crear una nueva clase en el horario
+// Crear una nueva clase en el horario
 export const createClass = async (classData) => {
   try {
     await addDoc(collection(db, "classes"), {
@@ -30,10 +30,10 @@ export const bookClass = async (userId, classData, userName) => {
   const classRef = doc(db, "classes", classData.id);
   
   try {
-    // Registramos la reserva con la estructura exacta que creaste
+    // Registrar reserva con la estructura exacta
     await addDoc(collection(db, "reservations"), {
       userId: userId,
-      classID: classData.id, // Respetando tu D mayúscula
+      classID: classData.id,
       className: classData.name,
       classTime: classData.startTime,
       userName: userName,
@@ -42,8 +42,6 @@ export const bookClass = async (userId, classData, userName) => {
       createdAt: new Date()
     });
 
-    // Actualizamos la clase restando un lugar
-    // (Opcional: Si después agregas el array de attendees en Firebase, se sumaría aquí)
     await updateDoc(classRef, {
       availableSpots: increment(-1)
     });
@@ -53,15 +51,13 @@ export const bookClass = async (userId, classData, userName) => {
   }
 };
 
-// 3. PARA EL COACH: Validar el QR del scanner
-// Añadir en src/services/gymService.js
+// Validar el QR del scanner
 export const validateAttendance = async (userId, classId) => {
   try {
-    // Buscamos la reserva usando los nombres de campos exactos que creaste
     const q = query(
       collection(db, "reservations"), 
       where("userId", "==", userId), 
-      where("classID", "==", classId) // Respetando tu "classID" con D mayúscula
+      where("classID", "==", classId)
     );
     
     const querySnapshot = await getDocs(q);
@@ -70,12 +66,11 @@ export const validateAttendance = async (userId, classId) => {
       const reservationDoc = querySnapshot.docs[0];
       const resData = reservationDoc.data();
 
-      // Validación extra: ¿Ya había entrado?
       if (resData.status === "attended") {
         return { success: false, message: "Este ticket ya fue escaneado previamente." };
       }
 
-      // Si todo está bien, actualizamos el estado a "attended"
+      // actualizamos el estado a "attended"
       await updateDoc(doc(db, "reservations", reservationDoc.id), {
         status: "attended"
       });
@@ -88,7 +83,7 @@ export const validateAttendance = async (userId, classId) => {
   }
 };
 
-// 4. PARA EL ADMIN: Eliminar una clase
+// Eliminar una clase
 export const deleteClass = async (classId) => {
   try {
     await deleteDoc(doc(db, "classes", classId));
@@ -99,12 +94,11 @@ export const deleteClass = async (classId) => {
   }
 };
 
-// PARA EL COACH: Guardar la evaluación de un atleta después de la clase
+// Guardar la evaluación de un atleta después de la clase
 export const evaluateAthlete = async (reservationId, evaluationData) => {
   try {
     const reservationRef = doc(db, "reservations", reservationId);
     
-    // Actualizamos el documento de la reservación con los datos de la evaluación
     await updateDoc(reservationRef, {
       evaluation: evaluationData.objectives,
       compliancePercentage: evaluationData.percentage,

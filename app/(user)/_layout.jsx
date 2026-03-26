@@ -11,7 +11,7 @@ export default function UserLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#00E5FF", // Cyan del usuario
+        tabBarActiveTintColor: "#00E5FF",
         tabBarInactiveTintColor: "#666666",
         tabBarButton: HapticTab,
         tabBarStyle: {
@@ -19,13 +19,12 @@ export default function UserLayout() {
           borderTopWidth: 1,
           borderTopColor: "#222222",
           height: 60 + insets.bottom,
-          // Empuja los íconos hacia arriba si existen botones virtuales en la pantalla
           paddingBottom: insets.bottom > 0 ? insets.bottom : 10,
           paddingTop: 10,
         },
       }}
     >
-      {/* PESTAÑA 1: INICIO (Dashboard) */}
+      {/* INICIO */}
       <Tabs.Screen
         name="index"
         options={{
@@ -36,18 +35,18 @@ export default function UserLayout() {
         }}
       />
 
-      {/* PESTAÑA 2: EXPLORAR (Reservas/Clases) */}
+      {/* EXPLORAR */}
       <Tabs.Screen
-        name="explore" // Asumiendo que tu archivo se llama classes.jsx
+        name="explore"
         options={{
           title: "Explorar",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={24} name="magnifyingglass" color={color} /> // Ícono de lupa para explorar
+            <IconSymbol size={24} name="magnifyingglass" color={color} />
           ),
         }}
       />
 
-      {/* PESTAÑA 3: PERFIL */}
+      {/* PERFIL */}
       <Tabs.Screen
         name="profile"
         options={{
@@ -62,7 +61,6 @@ export default function UserLayout() {
         }}
       />
 
-      {/* Pestañas ocultas (si tienes archivos que no deben salir en la barra) */}
       <Tabs.Screen name="ticket" options={{ href: null }} />
     </Tabs>
   );

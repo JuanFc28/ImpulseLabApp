@@ -5,7 +5,6 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { db } from "@/src/config/firebase";
 import { collection, getDocs, query, where } from "firebase/firestore";
 
-// Mantenemos el estilo Cyan para los Atletas (consistencia visual con el resto de la app)
 const athleteStyle = { 
     text: "ATLETA", 
     color: "#00E5FF", 
@@ -20,7 +19,6 @@ export default function CoachAthletesScreen() {
     const fetchAthletes = async () => {
         setIsLoading(true);
         try {
-            // Consulta directa: Solo traemos a los usuarios con rol de "user"
             const q = query(collection(db, "users"), where("role", "==", "user"));
             const querySnapshot = await getDocs(q);
             
@@ -29,7 +27,6 @@ export default function CoachAthletesScreen() {
                 ...doc.data() 
             }));
             
-            // Ordenamos alfabéticamente
             loadedAthletes.sort((a, b) => {
                 return (a.name || a.email || "").toLowerCase().localeCompare((b.name || b.email || "").toLowerCase());
             });
@@ -51,13 +48,11 @@ export default function CoachAthletesScreen() {
         <SafeAreaView className="flex-1 bg-impulse-dark">
             <View className="flex-1 px-5 pt-6">
                 
-                {/* HEADER CON ESPACIO SEGURO */}
                 <View className="mb-8 flex-row justify-between items-end">
                     <View>
                         <Text className="text-white text-3xl font-black">Atletas</Text>
                         <Text className="text-gray-500 text-sm">Directorio de alumnos</Text>
                     </View>
-                    {/* El contador usa el color naranja del coach */}
                     <Text className="text-orange-500 font-black text-xl">
                         {athletes.length} <Text className="text-gray-500 text-xs">total</Text>
                     </Text>

@@ -12,7 +12,7 @@ export default function AdminLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#10B981", // Verde Esmeralda
+        tabBarActiveTintColor: "#10B981",
         tabBarInactiveTintColor: "#666666",
         tabBarButton: HapticTab,
         tabBarStyle: {
@@ -20,13 +20,12 @@ export default function AdminLayout() {
           borderTopWidth: 1,
           borderTopColor: "#222222",
           height: 60 + insets.bottom,
-          // Empuja los íconos hacia arriba si existen botones virtuales en la pantalla
           paddingBottom: insets.bottom > 0 ? insets.bottom : 10,
           paddingTop: 10,
         },
       }}
     >
-      {/* PESTAÑA 1: HORARIOS */}
+      {/* HORARIOS */}
       <Tabs.Screen
         name="index"
         options={{
@@ -37,7 +36,7 @@ export default function AdminLayout() {
         }}
       />
 
-      {/* PESTAÑA 2: COMUNIDAD */}
+      {/* COMUNIDAD */}
       <Tabs.Screen
         name="users"
         options={{
@@ -48,7 +47,7 @@ export default function AdminLayout() {
         }}
       />
 
-      {/* PESTAÑA 3: PERFIL */}
+      {/* PERFIL */}
       <Tabs.Screen
         name="profile"
         options={{
@@ -63,7 +62,6 @@ export default function AdminLayout() {
         }}
       />
 
-      {/* Si aún tienes el archivo classes.jsx, lo ocultamos para que no salga como una 4ta pestaña */}
       <Tabs.Screen name="classes" options={{ href: null }} />
     </Tabs>
   );

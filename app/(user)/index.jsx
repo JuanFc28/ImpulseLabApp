@@ -17,7 +17,6 @@ export default function UserDashboard() {
         if (!user?.uid) return;
         setIsLoading(true);
         try {
-            // Buscamos las reservaciones de este usuario que ya tengan evaluación
             const q = query(
                 collection(db, "reservations"),
                 where("userId", "==", user.uid),
@@ -26,7 +25,7 @@ export default function UserDashboard() {
             const querySnapshot = await getDocs(q);
             const loadedEvals = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-            // Las ordenamos de la más reciente a la más antigua
+            // Orden de la más reciente a la más antigua
             loadedEvals.sort((a, b) => {
                 const dateA = new Date(`${a.classDate || a.date}T${a.startTime || "00:00"}`);
                 const dateB = new Date(`${b.classDate || b.date}T${b.startTime || "00:00"}`);
@@ -41,29 +40,26 @@ export default function UserDashboard() {
         }
     };
 
-    // Refrescar los datos cada vez que se monte el componente
     useEffect(() => {
         fetchEvaluations();
     }, [user]);
 
-    // Función para obtener los colores de la etiqueta de desempeño
     const getPerformanceBadge = (level) => {
         if (level === "Excelente") return { bg: "bg-green-500/10", text: "text-green-500", border: "border-green-500/30", ring: "#10B981" };
         if (level === "Bueno") return { bg: "bg-yellow-500/10", text: "text-yellow-500", border: "border-yellow-500/30", ring: "#EAB308" };
         return { bg: "bg-red-500/10", text: "text-red-500", border: "border-red-500/30", ring: "#EF4444" };
     };
 
-    // Sub-componente visual para las "palomitas" de los hábitos
     const HabitIndicator = ({ label, score }) => {
         let iconName = "xmark.circle.fill";
-        let iconColor = "#EF4444"; // Rojo (No cumplido)
+        let iconColor = "#EF4444";
         
         if (score === 1) { 
             iconName = "checkmark.circle.fill"; 
-            iconColor = "#10B981"; // Verde (Cumplido)
+            iconColor = "#10B981";
         } else if (score === 0.5) { 
             iconName = "exclamationmark.triangle.fill"; 
-            iconColor = "#EAB308"; // Amarillo (A medias)
+            iconColor = "#EAB308";
         }
 
         return (
@@ -78,13 +74,12 @@ export default function UserDashboard() {
         <SafeAreaView className="flex-1 bg-impulse-dark">
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
                 
-                {/* SALUDO INICIAL */}
                 <View className="px-5 pt-6 mb-8">
                     <Text className="text-gray-500 text-[10px] font-black uppercase tracking-[2px]">Dashboard</Text>
                     <Text className="text-white text-3xl font-black">Hola, {firstName}</Text>
                 </View>
 
-                {/* SECCIÓN: HISTORIAL DE DESEMPEÑO */}
+                {/* HISTORIAL DE CLASES */}
                 <View className="px-5">
                     <View className="flex-row items-center mb-6">
                         <IconSymbol name="chart.bar.fill" size={20} color="#00E5FF" />
@@ -123,17 +118,17 @@ export default function UserDashboard() {
                                         </View>
                                     </View>
 
-                                    {/* CUERPO: PORCENTAJE Y HÁBITOS */}
+                                    {/* PORCENTAJE Y EVALUACIONES */}
                                     <View className="flex-row items-center justify-between">
                                         
-                                        {/* Lista de Hábitos Evaluados */}
+                                        {/* Evaluaciones */}
                                         <View className="flex-1 pr-4">
                                             <HabitIndicator label="Rutina completada" score={evalData.evaluation?.rutina} />
                                             <HabitIndicator label="Cardio realizado" score={evalData.evaluation?.cardio} />
                                             <HabitIndicator label="Técnica / Indicaciones" score={evalData.evaluation?.indicaciones} />
                                         </View>
 
-                                        {/* Círculo de Porcentaje */}
+                                        {/* Porcentaje */}
                                         <View 
                                             className="w-[85px] h-[85px] rounded-full border-[5px] items-center justify-center bg-black/20" 
                                             style={{ borderColor: badge.ring }}
