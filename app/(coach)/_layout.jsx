@@ -48,7 +48,7 @@ export default function CoachLayout() {
                 options={{
                     title: 'Perfil',
                     tabBarIcon: ({ color }) => (
-                        <IconSymbol size={24} name="gearshape.fill" color={color} />
+                        <IconSymbol size={24} name="person.crop.circle.fill" color={color} />
                     ),
                 }}
             />

@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Mod
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { db } from "@/src/config/firebase";
-import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, onSnapshot } from "firebase/firestore";
 import { evaluateAthlete } from "@/src/services/gymService";
 
 export default function ClassDetailScreen() {
@@ -14,56 +14,67 @@ export default function ClassDetailScreen() {
     const [reservations, setReservations] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    // Estados para la Evaluación
     const [evalModalVisible, setEvalModalVisible] = useState(false);
     const [selectedReservation, setSelectedReservation] = useState(null);
     const [isSavingEval, setIsSavingEval] = useState(false);
     
-    // Valores de evaluación por hábito (1 = Cumplido, 0.5 = Parcial, 0 = No cumplido)
-    const [evalScores, setEvalScores] = useState({
-        rutina: 1,
-        cardio: 1,
-        indicaciones: 1
-    });
-
-    const fetchClassAndReservations = async () => {
-        if (!classId) return;
-        setIsLoading(true);
-        try {
-            // 1. Traer la clase
-            const classRef = doc(db, "classes", classId);
-            const classSnap = await getDoc(classRef);
-            if (classSnap.exists()) setClassData(classSnap.data());
-
-            // 2. Traer los atletas apuntados a esta clase
-            const q = query(collection(db, "reservations"), where("classID", "==", classId));
-            const querySnapshot = await getDocs(q);
-            const loadedReservations = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setReservations(loadedReservations);
-        } catch (error) {
-            Alert.alert("Error", "No se pudo cargar la información de la clase.");
-        } finally {
-            setIsLoading(false);
-        }
-    };
+    const [evalScores, setEvalScores] = useState({ rutina: 1, cardio: 1, indicaciones: 1 });
 
     useEffect(() => {
-        fetchClassAndReservations();
+        if (!classId) return;
+
+        setIsLoading(true);
+
+        const fetchClassData = async () => {
+            try {
+                const classRef = doc(db, "classes", classId);
+                const classSnap = await getDoc(classRef);
+                if (classSnap.exists()) setClassData(classSnap.data());
+            } catch (error) {
+                console.error("Error al cargar clase:", error);
+            }
+        };
+
+        fetchClassData();
+
+        const q = query(collection(db, "reservations"), where("classID", "==", classId));
+        
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            try {
+                if (!querySnapshot || !querySnapshot.docs) return;
+
+                // Reducción súper segura: Ignoramos cualquier doc corrupto
+                const loadedReservations = querySnapshot.docs.reduce((acc, currentDoc) => {
+                    if (currentDoc && currentDoc.id && currentDoc.data) {
+                        acc.push({ id: currentDoc.id, ...currentDoc.data() });
+                    }
+                    return acc;
+                }, []);
+                
+                setReservations(loadedReservations);
+                setIsLoading(false);
+            } catch (err) {
+                console.error("Error procesando snapshot:", err);
+                setIsLoading(false);
+            }
+        }, (error) => {
+            console.error("Error escuchando reservaciones:", error);
+            setIsLoading(false);
+        });
+
+        return () => unsubscribe();
     }, [classId]);
 
-    // LÓGICA DE EVALUACIÓN
     const openEvaluation = (reservation) => {
-        if (reservation.status !== "attended") {
+        if (reservation?.status !== "attended") {
             Alert.alert("Atleta no validado", "Primero debes escanear el QR del atleta para confirmar su asistencia antes de evaluarlo.");
             return;
         }
         
         setSelectedReservation(reservation);
-        // Si ya estaba evaluado, cargamos sus datos previos
-        if (reservation.isEvaluated) {
+        if (reservation?.isEvaluated) {
             setEvalScores(reservation.evaluation);
         } else {
-            // Valores por defecto
             setEvalScores({ rutina: 1, cardio: 1, indicaciones: 1 });
         }
         setEvalModalVisible(true);
@@ -74,41 +85,31 @@ export default function ClassDetailScreen() {
     };
 
     const saveEvaluation = async () => {
+        if (!selectedReservation?.id) return;
         setIsSavingEval(true);
         
-        // Calculamos el porcentaje (Promedio de los 3 hábitos multiplicado por 100)
         const totalScore = evalScores.rutina + evalScores.cardio + evalScores.indicaciones;
         const percentage = Math.round((totalScore / 3) * 100);
         
-        // Asignamos el nivel de desempeño
         let performanceLevel = "Bajo";
         if (percentage === 100) performanceLevel = "Excelente";
         else if (percentage >= 70) performanceLevel = "Bueno";
 
-        const evaluationData = {
-            objectives: evalScores,
-            percentage: percentage,
-            performanceLevel: performanceLevel
-        };
-
+        const evaluationData = { objectives: evalScores, percentage, performanceLevel };
         const result = await evaluateAthlete(selectedReservation.id, evaluationData);
         
         setIsSavingEval(false);
         
         if (result.success) {
             setEvalModalVisible(false);
-            fetchClassAndReservations(); // Recargar la lista para mostrar la calificación
         } else {
             Alert.alert("Error", "No se pudo guardar la evaluación.");
         }
     };
 
-    // Componente visual para los botones de calificación
     const ScoreButton = ({ label, value, currentScore, onPress }) => {
         const isSelected = currentScore === value;
-        let bgColor = "bg-white/5";
-        let borderColor = "border-white/5";
-        let textColor = "text-gray-500";
+        let bgColor = "bg-white/5", borderColor = "border-white/5", textColor = "text-gray-500";
 
         if (isSelected) {
             if (value === 1) { bgColor = "bg-green-500/20"; borderColor = "border-green-500"; textColor = "text-green-500"; }
@@ -123,29 +124,28 @@ export default function ClassDetailScreen() {
         );
     };
 
-    const attendedCount = reservations.filter(r => r.status === "attended").length;
+    // Filtro seguro por si algún objeto viene mal formado
+    const attendedCount = reservations?.filter(r => r && r.status === "attended").length || 0;
 
     return (
         <View className="flex-1 bg-impulse-dark pt-16 px-5">
-            {/* BOTÓN VOLVER */}
             <TouchableOpacity onPress={() => router.back()} className="mb-4 w-10 h-10 bg-white/5 rounded-full items-center justify-center border border-white/10">
                 <IconSymbol name="chevron.left" size={20} color="#FF9500" />
             </TouchableOpacity>
 
-            {/* HEADER */}
             {isLoading ? (
                 <ActivityIndicator size="large" color="#FF9500" className="mt-10" />
             ) : (
                 <View className="mb-8">
-                    <Text className="text-white text-3xl font-black mb-1">{classData?.name}</Text>
+                    <Text className="text-white text-3xl font-black mb-1">{classData?.name || "Clase"}</Text>
                     <Text className="text-orange-500 font-bold uppercase tracking-widest text-xs mb-4">
-                        {classData?.date} • {classData?.startTime}
+                        {classData?.date || ""} • {classData?.startTime || ""}
                     </Text>
                     
                     <View className="flex-row bg-impulse-gray p-4 rounded-3xl border border-white/5 justify-between items-center">
                         <View className="items-center flex-1 border-r border-white/10">
                             <Text className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-1">Apuntados</Text>
-                            <Text className="text-white text-2xl font-black">{reservations.length}</Text>
+                            <Text className="text-white text-2xl font-black">{reservations?.length || 0}</Text>
                         </View>
                         <View className="items-center flex-1">
                             <Text className="text-gray-400 text-[10px] font-black uppercase tracking-widest mb-1">Asistieron</Text>
@@ -155,26 +155,29 @@ export default function ClassDetailScreen() {
                 </View>
             )}
 
-            {/* LISTA DE ATLETAS (CON EVALUACIÓN) */}
             <Text className="text-gray-500 text-xs font-bold uppercase tracking-widest mb-4">Lista de Asistencia</Text>
             
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-                {reservations.length === 0 && !isLoading ? (
+                {reservations?.length === 0 && !isLoading ? (
                     <Text className="text-gray-500 text-center mt-4">Nadie ha reservado aún.</Text>
                 ) : (
-                    reservations.map((item) => {
+                    reservations?.map((item, index) => {
+                        // Si el item es nulo, lo ignoramos de la pantalla
+                        if (!item) return null;
+
                         const attended = item.status === "attended";
                         const evaluated = item.isEvaluated;
 
                         return (
                             <TouchableOpacity 
-                                key={item.id} 
+                                // Usamos un fallback en el ID por si Firebase lo manda corrupto
+                                key={item.id || `res-${index}`} 
                                 activeOpacity={0.8}
                                 onPress={() => openEvaluation(item)}
                                 className={`bg-impulse-gray p-4 rounded-3xl mb-3 border flex-row justify-between items-center ${attended ? "border-orange-500/30 bg-orange-500/5" : "border-white/5"}`}
                             >
                                 <View className="flex-1">
-                                    <Text className="text-white font-black text-lg">{item.userName}</Text>
+                                    <Text className="text-white font-black text-lg">{item?.userName || "Usuario"}</Text>
                                     {attended ? (
                                         evaluated ? (
                                             <Text className="text-green-500 text-[10px] font-black uppercase tracking-[1px] mt-1">Evaluación: {item.performanceLevel} ({item.compliancePercentage}%)</Text>
@@ -192,9 +195,11 @@ export default function ClassDetailScreen() {
                 )}
             </ScrollView>
 
-            {/* BOTÓN FLOTANTE ESCANEAR */}
             <View className="absolute bottom-10 left-6 right-6">
-                <TouchableOpacity onPress={() => router.push({ pathname: "/(coach)/scanner", params: { classId: classId } })} className="bg-orange-500 flex-row items-center justify-center py-5 rounded-full shadow-2xl shadow-orange-500/20">
+                <TouchableOpacity 
+                    onPress={() => router.push({ pathname: "/(coach)/scanner", params: { classId: classId } })} 
+                    className="bg-orange-500 flex-row items-center justify-center py-5 rounded-full shadow-2xl shadow-orange-500/20"
+                >
                     <View className="bg-black/10 p-1 rounded-full mr-2">
                         <IconSymbol name="qrcode.viewfinder" size={18} color="#000" />
                     </View>
@@ -202,9 +207,10 @@ export default function ClassDetailScreen() {
                 </TouchableOpacity>
             </View>
 
-            {/* MODAL DE EVALUACIÓN */}
+            {/* MODAL DE EVALUACIÓN (Se mantiene idéntico) */}
             <Modal visible={evalModalVisible} animationType="slide" transparent={true}>
-                <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1 justify-end bg-black/80">
+                {/* ... Código del modal idéntico al anterior ... */}
+                 <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} className="flex-1 justify-end bg-black/80">
                     <View className="bg-impulse-gray p-6 pt-8 rounded-t-[40px] border-t border-white/10">
                         <View className="w-12 h-1.5 bg-white/20 rounded-full self-center mb-6 absolute top-4" />
                         
