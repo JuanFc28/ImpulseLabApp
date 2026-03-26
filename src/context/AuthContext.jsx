@@ -6,11 +6,13 @@ import {
     signOut,
     updateProfile,
 } from "firebase/auth";
-import { doc, onSnapshot, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { auth, db } from "../config/firebase";
 
 const AuthContext = createContext({});
+
+const STORAGE_ROLE_KEY = "@user_role";
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
@@ -18,93 +20,72 @@ export const AuthProvider = ({ children }) => {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        let unsubscribeUserDoc = null;
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+            try {
+                if (firebaseUser) {
+                    setUser(firebaseUser);
 
-        const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
-            if (unsubscribeUserDoc) {
-                unsubscribeUserDoc();
-                unsubscribeUserDoc = null;
-            }
+                    let savedRole = await AsyncStorage.getItem(STORAGE_ROLE_KEY);
 
-            if (firebaseUser) {
-                try {
-                    const docRef = doc(db, "users", firebaseUser.uid);
+                    if (savedRole) {
+                        setRole(savedRole);
+                    } else {
+                        const docRef = doc(db, "users", firebaseUser.uid);
+                        const docSnap = await getDoc(docRef);
 
-                    unsubscribeUserDoc = onSnapshot(
-                        docRef,
-                        async (docSnap) => {
-                            let finalRole = "user";
-                            let finalName = firebaseUser.displayName || "";
+                        if (docSnap.exists()) {
+                            const userData = docSnap.data();
+                            const fetchedRole = userData.role || "user";
 
-                            if (docSnap.exists()) {
-                                const userData = docSnap.data();
+                            setRole(fetchedRole);
+                            await AsyncStorage.setItem(STORAGE_ROLE_KEY, fetchedRole);
 
-                                finalRole = userData.role || "user";
-                                finalName = firebaseUser.displayName || userData.name || "";
-
-                                await AsyncStorage.setItem("@user_role", finalRole);
-
-                                if (!firebaseUser.displayName && userData.name) {
-                                    await updateProfile(firebaseUser, {
-                                        displayName: userData.name,
-                                    });
-                                    finalName = userData.name;
-                                }
-                            } else {
-                                const savedRole = await AsyncStorage.getItem("@user_role");
-                                finalRole = savedRole || "user";
+                            if (!firebaseUser.displayName && userData.name) {
+                                await updateProfile(firebaseUser, {
+                                    displayName: userData.name,
+                                });
                             }
-
-                            setUser({
-                                ...firebaseUser,
-                                displayName: finalName,
-                            });
-                            setRole(finalRole);
-                            setIsLoading(false);
-                        },
-                        async (error) => {
-                            console.error("Error escuchando documento del usuario:", error);
-
-                            const savedRole = await AsyncStorage.getItem("@user_role");
-
-                            setUser({
-                                ...firebaseUser,
-                                displayName: firebaseUser.displayName || "",
-                            });
-                            setRole(savedRole || "user");
-                            setIsLoading(false);
+                        } else {
+                            setRole("user");
+                            await AsyncStorage.setItem(STORAGE_ROLE_KEY, "user");
                         }
-                    );
-                } catch (error) {
-                    console.error("Error en AuthContext:", error);
-
-                    const savedRole = await AsyncStorage.getItem("@user_role");
-
-                    setUser({
-                        ...firebaseUser,
-                        displayName: firebaseUser.displayName || "",
-                    });
-                    setRole(savedRole || "user");
-                    setIsLoading(false);
+                    }
+                } else {
+                    setUser(null);
+                    setRole(null);
+                    await AsyncStorage.removeItem(STORAGE_ROLE_KEY);
                 }
-            } else {
+            } catch (error) {
+                console.error("Error en AuthContext:", error);
                 setUser(null);
                 setRole(null);
-                await AsyncStorage.removeItem("@user_role");
+            } finally {
                 setIsLoading(false);
             }
         });
 
-        return () => {
-            if (unsubscribeUserDoc) {
-                unsubscribeUserDoc();
-            }
-            unsubscribeAuth();
-        };
+        return unsubscribe;
     }, []);
 
     const login = async (email, pass) => {
-        await signInWithEmailAndPassword(auth, email, pass);
+        const userCredential = await signInWithEmailAndPassword(auth, email, pass);
+        const loggedUser = userCredential.user;
+
+        const docRef = doc(db, "users", loggedUser.uid);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+            const userData = docSnap.data();
+            const fetchedRole = userData.role || "user";
+
+            setRole(fetchedRole);
+            await AsyncStorage.setItem(STORAGE_ROLE_KEY, fetchedRole);
+        } else {
+            setRole("user");
+            await AsyncStorage.setItem(STORAGE_ROLE_KEY, "user");
+        }
+
+        return userCredential;
     };
 
     const register = async (email, pass, name) => {
@@ -117,22 +98,24 @@ export const AuthProvider = ({ children }) => {
 
         await setDoc(doc(db, "users", newUser.uid), {
             email: newUser.email,
-            name: name,
+            name,
             role: "user",
             createdAt: new Date(),
         });
 
-        setUser({
-            ...newUser,
-            displayName: name,
-        });
+        await AsyncStorage.setItem(STORAGE_ROLE_KEY, "user");
+
+        setUser(newUser);
         setRole("user");
-        await AsyncStorage.setItem("@user_role", "user");
+
+        return userCredential;
     };
 
     const logout = async () => {
+        await AsyncStorage.removeItem(STORAGE_ROLE_KEY);
         await signOut(auth);
-        await AsyncStorage.removeItem("@user_role");
+        setUser(null);
+        setRole(null);
     };
 
     return (
