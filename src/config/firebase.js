@@ -1,22 +1,36 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { initializeApp } from "firebase/app";
-import { initializeAuth, getReactNativePersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+// Importamos getAuth para la web, y las herramientas de React Native para el móvil
+import { initializeAuth, getReactNativePersistence, getAuth } from "firebase/auth";
+import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 
 const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
-  measurementId: "G-6M44YSTKNN",
+  apiKey: "AIzaSyB5-G1LLhd1FGmLxlDOF_TqffO7LEVjd44",
+  authDomain: "impulselab-5f11b.firebaseapp.com",
+  projectId: "impulselab-5f11b",
+  storageBucket: "impulselab-5f11b.firebasestorage.app",
+  messagingSenderId: "461010828388",
+  appId: "1:461010828388:web:a696fc6a795b9aa9a93371",
+  measurementId: "G-6M44YSTKNN"
 };
 
+// Inicializamos la app y la base de datos
 const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-export const auth = initializeAuth(app, {
-  persistence: getReactNativePersistence(AsyncStorage),
-});
+// Declaramos la variable auth
+let auth;
 
-export const db = getFirestore(app);
+// Lógica condicional: ¿Dónde estoy corriendo?
+if (Platform.OS === 'web') {
+    // Si estoy en un navegador web, uso getAuth estándar (que usa IndexedDB/LocalStorage del navegador)
+    auth = getAuth(app);
+} else {
+    // Si estoy en iOS o Android, uso el adaptador de React Native
+    auth = initializeAuth(app, {
+        persistence: getReactNativePersistence(ReactNativeAsyncStorage)
+    });
+}
+
+export { auth, db };

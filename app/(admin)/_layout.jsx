@@ -61,8 +61,6 @@ export default function AdminLayout() {
           ),
         }}
       />
-
-      <Tabs.Screen name="classes" options={{ href: null }} />
     </Tabs>
   );
 }
