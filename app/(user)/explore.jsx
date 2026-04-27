@@ -14,19 +14,36 @@ export default function ExploreScreen() {
   const [weekDays, setWeekDays] = useState([]);
   const [selectedDateISO, setSelectedDateISO] = useState("");
   
+  // NUEVO: Estado para controlar qué semana estamos viendo (0 = actual, 1 = próxima, -1 = pasada)
+  const [weekOffset, setWeekOffset] = useState(0);
+  
   const [classes, setClasses] = useState([]);
   const [myReservations, setMyReservations] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // ACTUALIZADO: El calendario reacciona a los cambios en weekOffset
   useEffect(() => {
     const days = [];
-    const today = new Date();
-    const current = new Date(today);
+    const baseDate = new Date();
+    
+    // Aplicamos el desplazamiento de semanas (sumamos/restamos 7 días por cada offset)
+    baseDate.setDate(baseDate.getDate() + (weekOffset * 7));
+
+    const current = new Date(baseDate);
     const dayOfWeek = current.getDay(); 
+    // Buscamos el lunes de la semana calculada
     const diff = current.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1); 
     current.setDate(diff);
 
     const labels = ['LUN', 'MAR', 'MIE', 'JUE', 'VIE', 'SAB'];
+    let firstDayISO = "";
+    let todayISO = "";
+
+    // Obtenemos la fecha de "hoy" real para pre-seleccionarla si estamos en la semana actual
+    if (weekOffset === 0) {
+      const realToday = new Date();
+      todayISO = `${realToday.getFullYear()}-${String(realToday.getMonth() + 1).padStart(2, '0')}-${String(realToday.getDate()).padStart(2, '0')}`;
+    }
     
     for (let i = 0; i < 6; i++) {
       const year = current.getFullYear();
@@ -34,20 +51,26 @@ export default function ExploreScreen() {
       const day = String(current.getDate()).padStart(2, '0');
       const isoDate = `${year}-${month}-${day}`;
 
+      if (i === 0) firstDayISO = isoDate; // Guardamos el lunes
+
       days.push({
         label: labels[i],
         num: current.getDate(),
         isoDate: isoDate
       });
       
-      if (today.getDate() === current.getDate()) {
-        setSelectedDateISO(isoDate);
-      }
-      
       current.setDate(current.getDate() + 1);
     }
     setWeekDays(days);
-  }, []);
+
+    // UX: Si estamos en la semana actual y no es domingo, selecciona HOY. 
+    // Si navegamos a otra semana, selecciona el LUNES de esa semana.
+    if (weekOffset === 0 && new Date().getDay() !== 0) {
+        setSelectedDateISO(todayISO);
+    } else {
+        setSelectedDateISO(firstDayISO);
+    }
+  }, [weekOffset]); // Se vuelve a ejecutar cada vez que cambiamos de semana
 
   useEffect(() => {
     if (!selectedDateISO || !user) return;
@@ -61,7 +84,7 @@ export default function ExploreScreen() {
         
         const qRes = query(collection(db, "reservations"), where("userId", "==", user.uid));
         const resSnap = await getDocs(qRes);
-        const bookedIds = resSnap.docs.map(doc => doc.data().classID);
+        const bookedIds = resSnap.docs.map(doc => doc.data().classId || doc.data().classID);
 
         setClasses(loadedClasses);
         setMyReservations(bookedIds);
@@ -75,7 +98,6 @@ export default function ExploreScreen() {
     fetchData();
   }, [selectedDateISO, user]);
 
-  // Lógica de Reserva
   const handleReserve = (classItem) => {
     if (classItem.availableSpots <= 0) {
       Alert.alert("Lista de Espera", "Esta clase está llena. Te hemos añadido a la lista de espera.");
@@ -106,11 +128,40 @@ export default function ExploreScreen() {
     );
   };
 
+  // Función auxiliar para el texto del selector de semanas
+  const getWeekLabel = () => {
+      if (weekOffset === 0) return "Esta Semana";
+      if (weekOffset === 1) return "Próxima Semana";
+      if (weekOffset === -1) return "Semana Pasada";
+      return `Semana ${weekOffset > 0 ? '+' : ''}${weekOffset}`;
+  };
+
   return (
     <View className="flex-1 bg-impulse-dark pt-14 px-5">
-      <Text className="text-white text-3xl font-black mb-6">Explorar Clases</Text>
+      <Text className="text-white text-3xl font-black mb-4">Explorar Clases</Text>
       
-      {/* CALENDARIO */}
+      {/* NUEVO: NAVEGADOR DE SEMANAS */}
+      <View className="flex-row justify-between items-center mb-6 px-1">
+        <TouchableOpacity 
+            onPress={() => setWeekOffset(prev => prev - 1)} 
+            className="p-3 bg-white/5 rounded-full border border-white/5"
+        >
+            <IconSymbol name="chevron.left" size={18} color="#00E5FF" />
+        </TouchableOpacity>
+        
+        <Text className="text-[#00E5FF] font-black text-xs uppercase tracking-widest">
+            {getWeekLabel()}
+        </Text>
+        
+        <TouchableOpacity 
+            onPress={() => setWeekOffset(prev => prev + 1)} 
+            className="p-3 bg-white/5 rounded-full border border-white/5"
+        >
+            <IconSymbol name="chevron.right" size={18} color="#00E5FF" />
+        </TouchableOpacity>
+      </View>
+
+      {/* CALENDARIO DE DÍAS */}
       <View className="flex-row justify-between mb-8">
         {weekDays.map((day, index) => {
           const isSelected = day.isoDate === selectedDateISO;

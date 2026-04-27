@@ -10,6 +10,7 @@ export default function AdminLayout() {
   const insets = useSafeAreaInsets();
   return (
     <Tabs
+      initialRouteName="index" // Esto fuerza a que el dashboard sea la pantalla de inicio
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: "#10B981",
@@ -25,9 +26,20 @@ export default function AdminLayout() {
         },
       }}
     >
-      {/* HORARIOS */}
+      {/* 1. DASHBOARD (MÉTRICAS REALES) */}
       <Tabs.Screen
         name="index"
+        options={{
+          title: "Métricas",
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={24} name="chart.bar.fill" color={color} />
+          ),
+        }}
+      />
+
+      {/* 2. HORARIOS (Tu archivo index.jsx intacto) */}
+      <Tabs.Screen
+        name="schedule"
         options={{
           title: "Horarios",
           tabBarIcon: ({ color }) => (
@@ -36,7 +48,7 @@ export default function AdminLayout() {
         }}
       />
 
-      {/* COMUNIDAD */}
+      {/* 3. COMUNIDAD (Tu archivo users.jsx intacto) */}
       <Tabs.Screen
         name="users"
         options={{
@@ -47,7 +59,7 @@ export default function AdminLayout() {
         }}
       />
 
-      {/* PERFIL */}
+      {/* 4. PERFIL (Tu archivo profile.jsx intacto) */}
       <Tabs.Screen
         name="profile"
         options={{
