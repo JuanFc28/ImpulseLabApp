@@ -3,9 +3,11 @@ import { View, Text, TouchableOpacity, Alert, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuth } from "@/src/context/AuthContext";
+import { useRouter } from "expo-router";
 
 export default function AdminProfileScreen() {
   const { user, logout } = useAuth();
+  const router = useRouter();
 
   const handleLogout = () => {
     Alert.alert("Cerrar Sesión", "¿Deseas salir del panel de administración?", [
@@ -58,6 +60,25 @@ export default function AdminProfileScreen() {
               <Text className="text-emerald-500" style={{ fontWeight: 'bold' }}>Control Total</Text>
             </View>
           </View>
+        </View>
+
+        {/* ATTENDANCE QR SETTINGS */}
+        <View className="mb-8">
+          <Text className="text-white text-lg font-black tracking-tight mb-4">Configuración de Gimnasio</Text>
+          <TouchableOpacity 
+            onPress={() => router.push("/(admin)/attendance-qr")}
+            activeOpacity={0.8}
+            className="bg-[#1C1C1E] p-5 rounded-3xl flex-row items-center border border-white/5"
+          >
+            <View className="bg-emerald-500/20 p-3 rounded-2xl mr-4 border border-emerald-500/30">
+               <IconSymbol name="qrcode" size={24} color="#10B981" />
+            </View>
+            <View className="flex-1">
+               <Text className="text-white font-bold text-lg tracking-tight">QR de Asistencia General</Text>
+               <Text className="text-gray-500 text-xs font-medium mt-1">Generar o ver QR para check-in del gimnasio</Text>
+            </View>
+            <IconSymbol name="chevron.right" size={20} color="#666" />
+          </TouchableOpacity>
         </View>
 
         <TouchableOpacity 
