@@ -35,6 +35,17 @@ export default function UserLayout() {
         }}
       />
 
+      {/* RUTINAS */}
+      <Tabs.Screen
+        name="routines"
+        options={{
+          title: "Rutinas",
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={24} name="dumbbell.fill" color={color} />
+          ),
+        }}
+      />
+
       {/* EXPLORAR */}
       <Tabs.Screen
         name="explore"
@@ -62,6 +73,8 @@ export default function UserLayout() {
       />
 
       <Tabs.Screen name="ticket" options={{ href: null }} />
+      <Tabs.Screen name="routine-detail" options={{ href: null }} />
+      <Tabs.Screen name="scan-attendance" options={{ href: null }} />
     </Tabs>
   );
 }

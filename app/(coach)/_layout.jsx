@@ -46,6 +46,16 @@ export default function CoachLayout() {
       />
 
       <Tabs.Screen
+        name="routines"
+        options={{
+          title: "Rutinas",
+          tabBarIcon: ({ color }) => (
+            <IconSymbol size={24} name="dumbbell.fill" color={color} />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
         name="profile"
         options={{
           title: "Perfil",
@@ -68,6 +78,13 @@ export default function CoachLayout() {
 
       <Tabs.Screen
         name="class-detail"
+        options={{
+          href: null,
+        }}
+      />
+
+      <Tabs.Screen
+        name="create-routine"
         options={{
           href: null,
         }}
