@@ -4,7 +4,7 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useAuth } from "../../src/context/AuthContext";
 import { useRouter } from "expo-router";
 import { db } from "@/src/config/firebase";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, onSnapshot, query, where } from "firebase/firestore";
 
 export default function CoachHomeScreen() {
     const { user } = useAuth();
@@ -16,21 +16,21 @@ export default function CoachHomeScreen() {
     const firstName = user?.displayName ? user.displayName.split(" ")[0] : "Coach";
 
     useEffect(() => {
-        const fetchCoachClasses = async () => {
-            if (!user?.uid) {
-                setIsLoading(false);
-                return;
-            }
+        if (!user?.uid) {
+            setIsLoading(false);
+            return;
+        }
 
-            setIsLoading(true);
-            try {
-                const q = query(
-                    collection(db, "classes"),
-                    where("coachId", "==", user.uid)
-                );
+        setIsLoading(true);
 
-                const querySnapshot = await getDocs(q);
+        const q = query(
+            collection(db, "classes"),
+            where("coachId", "==", user.uid)
+        );
 
+        const unsubscribe = onSnapshot(
+            q,
+            (querySnapshot) => {
                 const loadedClasses = querySnapshot.docs.map((doc) => ({
                     id: doc.id,
                     ...doc.data(),
@@ -43,14 +43,15 @@ export default function CoachHomeScreen() {
                 });
 
                 setClasses(loadedClasses);
-            } catch (error) {
-                console.error("Error al cargar clases del coach:", error);
-            } finally {
+                setIsLoading(false);
+            },
+            (error) => {
+                console.error("Error en tiempo real al cargar clases del coach:", error);
                 setIsLoading(false);
             }
-        };
+        );
 
-        fetchCoachClasses();
+        return () => unsubscribe();
     }, [user?.uid]);
 
     const todayString = new Date().toISOString().split("T")[0];
@@ -91,7 +92,6 @@ export default function CoachHomeScreen() {
                 showsVerticalScrollIndicator={false}
                 contentContainerClassName="pb-[120px]"
             >
-                {/* HEADER */}
                 <View className="flex-row justify-between items-center mb-8">
                     <View className="flex-row items-center">
                         <View className="w-12 h-12 rounded-full border-2 border-orange-500 p-[2px] mr-3">
@@ -99,6 +99,7 @@ export default function CoachHomeScreen() {
                                 <IconSymbol name="person.fill" size={20} color="#FF9500" />
                             </View>
                         </View>
+
                         <View>
                             <View className="flex-row items-center mb-0.5">
                                 <View className="w-2 h-2 rounded-full bg-green-500 mr-1.5" />
@@ -106,6 +107,7 @@ export default function CoachHomeScreen() {
                                     Modo Coach
                                 </Text>
                             </View>
+
                             <Text className="text-white text-2xl font-black tracking-tight">
                                 Hola, {firstName}
                             </Text>
@@ -117,12 +119,12 @@ export default function CoachHomeScreen() {
                     </TouchableOpacity>
                 </View>
 
-                {/* MÉTRICAS DEL COACH */}
                 <View className="flex-row gap-4 mb-8">
                     <View className="flex-1 bg-impulse-gray border border-white/5 rounded-3xl p-5 relative overflow-hidden">
                         <Text className="text-gray-400 text-[10px] font-bold tracking-widest mb-1">
                             CLASES HOY
                         </Text>
+
                         <View className="flex-row items-baseline">
                             <Text className="text-white text-3xl font-black">
                                 {todayClasses.length}
@@ -135,6 +137,7 @@ export default function CoachHomeScreen() {
                         <Text className="text-gray-400 text-[10px] font-bold tracking-widest mb-1">
                             CUPO TOTAL
                         </Text>
+
                         <View className="flex-row items-baseline">
                             <Text className="text-white text-3xl font-black">
                                 {totalAttendanceCapacity}
@@ -144,7 +147,6 @@ export default function CoachHomeScreen() {
                     </View>
                 </View>
 
-                {/* PRÓXIMA CLASE */}
                 <View className="flex-row justify-between items-end mb-4">
                     <Text className="text-white text-lg font-black">Tu próxima clase</Text>
                     <Text className="text-impulse-cyan text-xs font-bold">
@@ -178,6 +180,7 @@ export default function CoachHomeScreen() {
                         <Text className="text-black text-3xl font-black mb-1">
                             {upcomingClass.date}
                         </Text>
+
                         <Text className="text-black/70 text-sm font-bold mb-6">
                             Hora: {upcomingClass.startTime} • Lugares:{" "}
                             {upcomingClass.availableSpots ?? upcomingClass.totalSpots}/
@@ -189,13 +192,13 @@ export default function CoachHomeScreen() {
                         <Text className="text-white text-xl font-black mb-2">
                             Sin clases asignadas
                         </Text>
+
                         <Text className="text-gray-400">
                             Aún no tienes clases asignadas por el administrador.
                         </Text>
                     </View>
                 )}
 
-                {/* MIS CLASES */}
                 <View className="bg-[#111] border border-white/5 rounded-[32px] p-6 mb-8">
                     <View className="flex-row justify-between items-center mb-6">
                         <View className="flex-row items-center">
@@ -228,7 +231,10 @@ export default function CoachHomeScreen() {
                                 }`}
                             >
                                 <View className="flex-1 pr-3">
-                                    <Text className="text-white font-bold text-base">{item.name}</Text>
+                                    <Text className="text-white font-bold text-base">
+                                        {item.name}
+                                    </Text>
+
                                     <Text className="text-gray-400 text-xs mt-1">
                                         {item.date} • {item.startTime}
                                     </Text>
@@ -240,6 +246,7 @@ export default function CoachHomeScreen() {
                                             {item.availableSpots ?? item.totalSpots}/{item.totalSpots}
                                         </Text>
                                     </View>
+
                                     <IconSymbol name="chevron.right" size={16} color="#888" />
                                 </View>
                             </TouchableOpacity>
@@ -248,16 +255,16 @@ export default function CoachHomeScreen() {
                 </View>
             </ScrollView>
 
-            {/* PASAR LISTA */}
             <View className="absolute bottom-10 left-6 right-6">
                 <TouchableOpacity
                     activeOpacity={0.9}
-                    onPress={() => router.push("/scanner")}
+                    onPress={() => router.push("/(coach)/scanner")}
                     className="bg-white flex-row items-center justify-center py-5 rounded-full shadow-2xl shadow-white/20"
                 >
                     <View className="bg-black/5 p-1 rounded-full mr-2">
                         <IconSymbol name="checkmark.circle.fill" size={18} color="#000" />
                     </View>
+
                     <Text className="text-impulse-dark font-black text-sm tracking-[2px]">
                         PASAR LISTA AHORA
                     </Text>
