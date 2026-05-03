@@ -635,115 +635,79 @@ export default function ExploreScreen() {
                                 const spots = cls.availableSpots || 0;
                                 const isFull = spots <= 0 && !isReserved;
 
+                                const isCancelled = cls.status === "cancelled";
+
                                 return (
                                     <View
                                         key={cls.id}
-                                        className="bg-[#1C1C1E] p-5 rounded-3xl mb-4 border border-white/5 mx-1"
+                                        className={`p-5 rounded-3xl mb-4 border mx-1 ${
+                                            isCancelled ? "bg-red-900/10 border-red-500/40" : "bg-[#1C1C1E] border-white/5"
+                                        }`}
                                     >
                                         <View className="flex-row justify-between items-center mb-4">
                                             <View>
-                                                <Text className="text-white text-3xl font-black tracking-tighter">
+                                                <Text className={`text-3xl font-black tracking-tighter ${isCancelled ? "text-red-500/50" : "text-white"}`}>
                                                     {cls.startTime}
                                                 </Text>
-
                                                 {cls.endTime && (
                                                     <Text className="text-gray-500 font-bold mb-1">
                                                         hasta {cls.endTime}
                                                     </Text>
                                                 )}
-
-                                                <Text className="text-gray-400 font-bold text-sm uppercase tracking-widest mt-1">
+                                                <Text className={`font-bold text-sm uppercase tracking-widest mt-1 ${isCancelled ? "text-red-400" : "text-gray-400"}`}>
                                                     {cls.name}
                                                 </Text>
                                             </View>
 
-                                            <View className="bg-pink-500/10 px-3 py-1.5 rounded-full border border-pink-500/30">
-                                                <Text className="font-bold text-[10px] text-pink-400 tracking-wider">
-                                                    GRUPO
-                                                </Text>
-                                            </View>
+                                            {isCancelled ? (
+                                                <View className="bg-red-500/20 px-3 py-1.5 rounded-full border border-red-500/40">
+                                                    <Text className="font-bold text-[10px] text-red-500 tracking-wider">CANCELADA</Text>
+                                                </View>
+                                            ) : (
+                                                <View className="bg-pink-500/10 px-3 py-1.5 rounded-full border border-pink-500/30">
+                                                    <Text className="font-bold text-[10px] text-pink-400 tracking-wider">GRUPO</Text>
+                                                </View>
+                                            )}
                                         </View>
 
                                         <View className="flex-row items-center mb-5">
-                                            <View className="bg-white/10 w-8 h-8 rounded-full items-center justify-center mr-3">
-                                                <IconSymbol name="person.fill" size={14} color="#888" />
+                                            <View className={`w-8 h-8 rounded-full items-center justify-center mr-3 ${isCancelled ? "bg-red-500/20" : "bg-white/10"}`}>
+                                                <IconSymbol name="person.fill" size={14} color={isCancelled ? "#EF4444" : "#888"} />
                                             </View>
-
-                                            <Text className="text-gray-300 font-medium">
+                                            <Text className={`${isCancelled ? "text-red-400" : "text-gray-300"} font-medium`}>
                                                 {cls.coachName || "Coach Invitado"}
                                             </Text>
                                         </View>
 
-                                        <View className="flex-row items-center justify-between mt-2 pt-4 border-t border-white/5">
-                                            <Text
-                                                className={`text-xs font-black ${
-                                                    isFull ? "text-red-500" : "text-gray-400"
-                                                }`}
-                                            >
-                                                {isFull ? "SIN CUPO" : `${spots} LUGARES`}
-                                            </Text>
-
-                                            {isReserved ? (
-                                                <View className="flex-row gap-2">
-                                                    <TouchableOpacity
-                                                        onPress={() =>
-                                                            router.push({
-                                                                pathname: "/(user)/ticket",
-                                                                params: {
-                                                                    classId: cls.id,
-                                                                    className: cls.name,
-                                                                    time: cls.startTime,
-                                                                    coach: cls.coachName,
-                                                                },
-                                                            })
-                                                        }
-                                                        className="px-5 py-2.5 rounded-xl bg-white/10 border border-white/20"
-                                                    >
-                                                        <Text className="font-black text-xs text-white">
-                                                            VER TICKET
-                                                        </Text>
-                                                    </TouchableOpacity>
-
-                                                    <TouchableOpacity
-                                                        onPress={() =>
-                                                            isAttended
-                                                                ? Alert.alert(
-                                                                    "Realizada",
-                                                                    "Ya asististe a esta clase."
-                                                                )
-                                                                : handleCancelClass(cls)
-                                                        }
-                                                        className={`px-5 py-2.5 rounded-xl border ${
-                                                            isAttended
-                                                                ? "bg-green-500/10 border-green-500/30"
-                                                                : "bg-red-500/10 border-red-500/30"
-                                                        }`}
-                                                    >
-                                                        <Text
-                                                            className={`font-black text-xs ${
-                                                                isAttended ? "text-green-500" : "text-red-500"
-                                                            }`}
-                                                        >
-                                                            {isAttended ? "ASISTIDA" : "CANCELAR"}
-                                                        </Text>
-                                                    </TouchableOpacity>
+                                        <View className={`flex-row items-center justify-between mt-2 pt-4 border-t ${isCancelled ? "border-red-500/20" : "border-white/5"}`}>
+                                            {isCancelled ? (
+                                                <View className="w-full items-center py-2">
+                                                    <Text className="text-red-500 font-black text-xs uppercase tracking-widest">
+                                                        Clase Cancelada
+                                                    </Text>
                                                 </View>
                                             ) : (
-                                                <TouchableOpacity
-                                                    onPress={() => handleReserveClass(cls)}
-                                                    disabled={isFull}
-                                                    className={`px-6 py-2.5 rounded-xl ${
-                                                        isFull ? "bg-white/5" : "bg-impulse-cyan"
-                                                    }`}
-                                                >
-                                                    <Text
-                                                        className={`font-black text-xs ${
-                                                            isFull ? "text-white/20" : "text-black"
-                                                        }`}
-                                                    >
-                                                        RESERVAR
+                                                // Bloque original para las clases disponibles (Botones Reservar / Cancelar)
+                                                <>
+                                                    <Text className={`text-xs font-black ${isFull ? "text-red-500" : "text-gray-400"}`}>
+                                                        {isFull ? "SIN CUPO" : `${spots} LUGARES`}
                                                     </Text>
-                                                </TouchableOpacity>
+
+                                                    {isReserved ? (
+                                                        <View className="flex-row gap-2">
+                                                            <TouchableOpacity onPress={() => router.push({ pathname: "/(user)/ticket", params: { classId: cls.id, className: cls.name, time: cls.startTime, coach: cls.coachName } })} className="px-5 py-2.5 rounded-xl bg-white/10 border border-white/20">
+                                                                <Text className="font-black text-xs text-white">VER TICKET</Text>
+                                                            </TouchableOpacity>
+                                                            <TouchableOpacity onPress={() => isAttended ? Alert.alert("Realizada", "Ya asististe a esta clase.") : handleCancelClass(cls)} className={`px-5 py-2.5 rounded-xl border ${isAttended ? "bg-green-500/10 border-green-500/30" : "bg-red-500/10 border-red-500/30"}`}>
+                                                                <Text className={`font-black text-xs ${isAttended ? "text-green-500" : "text-red-500"}`}>{isAttended ? "ASISTIDA" : "CANCELAR"}</Text>
+                                                            </TouchableOpacity>
+                                                        </View>
+                                                    ) : (
+                                                        <TouchableOpacity onPress={() => handleReserveClass(cls)} disabled={isFull} className={`px-6 py-2.5 rounded-xl ${isFull ? "bg-white/5" : "bg-impulse-cyan"}`}>
+                                                            <Text className={`font-black text-xs ${isFull ? "text-white/20" : "text-black"}`}>RESERVAR</Text>
+                                                        </TouchableOpacity>
+                                                    )}
+                                                </>
                                             )}
                                         </View>
                                     </View>

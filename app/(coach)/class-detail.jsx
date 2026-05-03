@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Mod
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { db } from "@/src/config/firebase";
-import { doc, getDoc, collection, query, where, onSnapshot } from "firebase/firestore";
+import { doc, getDoc, collection, query, where, onSnapshot, updateDoc } from "firebase/firestore";
 import { evaluateAthlete } from "@/src/services/gymService";
 
 export default function ClassDetailScreen() {
@@ -123,6 +123,30 @@ export default function ClassDetailScreen() {
         );
     };
 
+    const handleCancelClassCoach = () => {
+        Alert.alert(
+            "Cancelar Clase",
+            "¿Estás seguro de cancelar esta clase? A los atletas les aparecerá como cancelada.",
+            [
+                { text: "No", style: "cancel" },
+                { 
+                    text: "Sí, cancelar", 
+                    style: "destructive", 
+                    onPress: async () => {
+                        try {
+                            const classRef = doc(db, "classes", classId);
+                            await updateDoc(classRef, { status: "cancelled" });
+                            setClassData(prev => ({ ...prev, status: "cancelled" }));
+                            Alert.alert("Cancelada", "La clase ha sido cancelada exitosamente.");
+                        } catch (error) {
+                            Alert.alert("Error", "No se pudo cancelar la clase.");
+                        }
+                    } 
+                }
+            ]
+        );
+    };
+
     const attendedCount = reservations?.filter(r => r && r.status === "attended").length || 0;
 
     return (
@@ -135,7 +159,26 @@ export default function ClassDetailScreen() {
                 <ActivityIndicator size="large" color="#FF9500" className="mt-10" />
             ) : (
                 <View className="mb-8">
-                    <Text className="text-white text-3xl font-black mb-1">{classData?.name || "Clase"}</Text>
+                    <View className="flex-row justify-between items-center mb-1">
+                        <Text className={`text-3xl font-black ${classData?.status === "cancelled" ? "text-red-500" : "text-white"}`}>
+                            {classData?.name || "Clase"}
+                        </Text>
+                        
+                        {/* Botón de cancelar clase para el coach */}
+                        {classData?.status !== "cancelled" && (
+                            <TouchableOpacity onPress={handleCancelClassCoach} className="bg-red-500/10 px-3 py-1.5 rounded-full border border-red-500/30">
+                                <Text className="text-red-500 text-[10px] font-black uppercase">Cancelar Clase</Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
+
+                    {classData?.status === "cancelled" && (
+                        <View className="bg-red-500/20 py-2 px-4 rounded-xl mb-4 border border-red-500/30">
+                            <Text className="text-red-500 font-bold text-xs text-center uppercase tracking-widest">
+                                Esta clase ha sido cancelada
+                            </Text>
+                        </View>
+                    )}
                     <Text className="text-orange-500 font-bold uppercase tracking-widest text-xs mb-4">
                         {classData?.date || ""} • {classData?.startTime || ""}
                     </Text>
