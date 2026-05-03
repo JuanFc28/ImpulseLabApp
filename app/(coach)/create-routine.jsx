@@ -15,7 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { useAuth } from "@/src/context/AuthContext";
-import { createRoutine, updateRoutine } from "@/src/services/gymService";
+import { createRoutine, updateRoutine, markExerciseAsFeatured } from "@/src/services/gymService";
 import { db } from "@/src/config/firebase";
 import { doc, getDoc } from "firebase/firestore";
 
@@ -38,7 +38,7 @@ export default function CreateRoutineScreen() {
     const [bodyPart, setBodyPart] = useState("Full Body");
     const [goal, setGoal] = useState("Hipertrofia");
     const [duration, setDuration] = useState("45");
-    const [isRecommended, setIsRecommended] = useState(false);
+    const [featured, setFeatured] = useState(false);
     const [exercises, setExercises] = useState([]);
 
     const [pickerVisible, setPickerVisible] = useState(false);
@@ -71,7 +71,7 @@ export default function CreateRoutineScreen() {
                 setBodyPart(data.bodyPart || "Full Body");
                 setGoal(data.goal || "Hipertrofia");
                 setDuration(data.durationMinutes?.toString() || "45");
-                setIsRecommended(data.isRecommended || false);
+                setFeatured(data.featured || data.isRecommended || false);
                 setExercises(Array.isArray(data.exercises) ? data.exercises : []);
             }
         } catch (e) {
@@ -105,7 +105,7 @@ export default function CreateRoutineScreen() {
                 bodyPart,
                 goal,
                 durationMinutes: durNum,
-                isRecommended,
+                featured,
                 isActive: true,
                 exercises,
                 exerciseCount: exercises.length,
@@ -117,9 +117,15 @@ export default function CreateRoutineScreen() {
 
             if (isEditing) {
                 await updateRoutine(routineId, payload);
+                if (featured) {
+                    await markExerciseAsFeatured(routineId, user?.uid, user?.displayName || "Coach");
+                }
                 Alert.alert("Actualizada", "La rutina ha sido guardada.");
             } else {
-                await createRoutine(payload);
+                const docRefId = await createRoutine(payload);
+                if (featured && docRefId) {
+                    await markExerciseAsFeatured(docRefId, user?.uid, user?.displayName || "Coach");
+                }
                 Alert.alert("Creada", "La rutina ha sido publicada.");
             }
 
@@ -326,24 +332,24 @@ export default function CreateRoutineScreen() {
                     </View>
 
                     <TouchableOpacity
-                        onPress={() => setIsRecommended(!isRecommended)}
+                        onPress={() => setFeatured(!featured)}
                         className={`p-4 rounded-2xl flex-row items-center justify-between border mb-8 ${
-                            isRecommended ? "bg-orange-500/10 border-orange-500/30" : "bg-[#1C1C1E] border-white/10"
+                            featured ? "bg-orange-500/10 border-orange-500/30" : "bg-[#1C1C1E] border-white/10"
                         }`}
                     >
                         <View>
-                            <Text className={`font-bold ${isRecommended ? "text-orange-400" : "text-white"}`}>
+                            <Text className={`font-bold ${featured ? "text-orange-400" : "text-white"}`}>
                                 Destacar Rutina
                             </Text>
-                            <Text className="text-gray-500 text-xs mt-0.5">Aparecerá en recomendados</Text>
+                            <Text className="text-gray-500 text-xs mt-0.5">Aparecerá en destacados por 3 días</Text>
                         </View>
 
                         <View
                             className={`w-6 h-6 rounded-full border items-center justify-center ${
-                                isRecommended ? "bg-orange-500 border-orange-500" : "border-gray-500"
+                                featured ? "bg-orange-500 border-orange-500" : "border-gray-500"
                             }`}
                         >
-                            {isRecommended && <IconSymbol name="checkmark" size={14} color="#000" />}
+                            {featured && <IconSymbol name="checkmark" size={14} color="#000" />}
                         </View>
                     </TouchableOpacity>
 

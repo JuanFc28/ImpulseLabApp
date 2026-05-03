@@ -12,6 +12,9 @@ import {
     setDoc,
     increment,
     deleteDoc,
+    onSnapshot,
+    serverTimestamp,
+    Timestamp,
 } from "firebase/firestore";
 
 const getLocalDateISO = () => {
@@ -403,11 +406,12 @@ export const getUserGymAttendance = async (userId) => {
 
 export const createRoutine = async (routineData) => {
     try {
-        await addDoc(collection(db, "routines"), {
+        const docRef = await addDoc(collection(db, "routines"), {
             ...routineData,
             createdAt: new Date(),
             updatedAt: new Date(),
         });
+        return docRef.id;
     } catch (e) {
         console.error("Error creating routine: ", e);
         throw e;
@@ -521,6 +525,69 @@ export const markRoutineCompleted = async (userId, routine) => {
         return { success: true };
     } catch (e) {
         console.error("Error marking routine completed: ", e);
+        throw e;
+    }
+};
+
+export const listenFeaturedExercisesForUser = (userId, callback) => {
+    const q = query(
+        collection(db, "routines"),
+        where("featured", "==", true)
+    );
+
+    return onSnapshot(q, (snap) => {
+        const now = new Date();
+        const results = [];
+        snap.docs.forEach((docItem) => {
+            const data = docItem.data();
+            if (data.featuredExpiresAt) {
+                const expiresAt = data.featuredExpiresAt.toDate();
+                if (expiresAt > now) {
+                    results.push({ id: docItem.id, ...data });
+                }
+            } else {
+                 results.push({ id: docItem.id, ...data });
+            }
+        });
+        callback(results);
+    }, (error) => {
+        console.error("Error listening to featured exercises:", error);
+        callback([]);
+    });
+};
+
+export const removeFeaturedExercise = async (exerciseId, coachId) => {
+    try {
+        const docRef = doc(db, "routines", exerciseId);
+        await updateDoc(docRef, {
+            featured: false,
+            featuredRemovedAt: serverTimestamp(),
+            featuredRemovedBy: coachId
+        });
+        return { success: true };
+    } catch (e) {
+        console.error("Error removing featured exercise: ", e);
+        throw e;
+    }
+};
+
+export const markExerciseAsFeatured = async (exerciseId, coachId, coachName) => {
+    try {
+        const docRef = doc(db, "routines", exerciseId);
+        const now = new Date();
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 3);
+
+        await updateDoc(docRef, {
+            featured: true,
+            featuredAt: Timestamp.fromDate(now),
+            featuredExpiresAt: Timestamp.fromDate(expiresAt),
+            assignedBy: coachId,
+            assignedByName: coachName
+        });
+        return { success: true };
+    } catch (e) {
+        console.error("Error marking featured: ", e);
         throw e;
     }
 };
