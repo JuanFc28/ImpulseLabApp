@@ -11,7 +11,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useRouter } from "expo-router";
 import { useAuth } from "@/src/context/AuthContext";
-import { getRoutines, deleteRoutine } from "@/src/services/gymService";
+import { getRoutines, deleteRoutine, removeFeaturedExercise } from "@/src/services/gymService";
 import { useFocusEffect } from "@react-navigation/native";
 
 export default function CoachRoutinesScreen() {
@@ -62,6 +62,29 @@ export default function CoachRoutinesScreen() {
                         } catch (error) {
                             console.error("Error deleting routine:", error);
                             Alert.alert("Error", "No se pudo eliminar la rutina.");
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
+    const handleRemoveFeatured = (routine) => {
+        Alert.alert(
+            "Quitar Destacado",
+            `¿Estás seguro de que quieres quitar "${routine.title}" de los destacados?`,
+            [
+                { text: "Cancelar", style: "cancel" },
+                {
+                    text: "Quitar",
+                    style: "destructive",
+                    onPress: async () => {
+                        try {
+                            await removeFeaturedExercise(routine.id, user.uid);
+                            fetchCoachRoutines();
+                        } catch (error) {
+                            console.error("Error removing featured:", error);
+                            Alert.alert("Error", "No se pudo quitar de destacados.");
                         }
                     },
                 },
@@ -133,7 +156,14 @@ export default function CoachRoutinesScreen() {
                                         )}
                                     </View>
 
-                                    {routine.isRecommended && (
+                                    {routine.featured && (
+                                        <View className="bg-orange-500/20 px-2 py-1 rounded-md border border-orange-500/30">
+                                            <Text className="text-orange-400 text-[10px] font-bold">
+                                                DESTACADO
+                                            </Text>
+                                        </View>
+                                    )}
+                                    {routine.isRecommended && !routine.featured && (
                                         <View className="bg-orange-500/20 px-2 py-1 rounded-md border border-orange-500/30">
                                             <Text className="text-orange-400 text-[10px] font-bold">
                                                 RECOMENDADO
@@ -168,6 +198,15 @@ export default function CoachRoutinesScreen() {
                                     </Text>
 
                                     <View className="flex-row gap-x-2">
+                                        {routine.featured && (
+                                            <TouchableOpacity
+                                                onPress={() => handleRemoveFeatured(routine)}
+                                                className="bg-orange-500/10 px-4 py-2 rounded-xl border border-orange-500/20"
+                                            >
+                                                <Text className="text-orange-500 font-bold text-xs">Remove Featured</Text>
+                                            </TouchableOpacity>
+                                        )}
+
                                         <TouchableOpacity
                                             onPress={() =>
                                                 router.push({
