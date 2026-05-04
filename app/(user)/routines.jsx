@@ -11,10 +11,14 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+<<<<<<< HEAD
 import {
   getRoutines,
   listenFeaturedExercisesForUser,
 } from "@/src/services/gymService";
+=======
+import { getRoutines, listenLatestRoutinesForUser } from "@/src/services/gymService";
+>>>>>>> e3da7e70f0a31d403b96169003fd4eff8397a949
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "@/src/context/AuthContext";
 
@@ -28,14 +32,47 @@ const CATEGORIES = [
   "Cardio",
 ];
 
+const formatDate = (value) => {
+    if (!value) return "Fecha reciente";
+
+    try {
+        let date;
+
+        if (value.seconds) {
+            date = new Date(value.seconds * 1000);
+        } else if (value instanceof Date) {
+            date = value;
+        } else {
+            date = new Date(value);
+        }
+
+        if (Number.isNaN(date.getTime())) return "Fecha reciente";
+
+        return date.toLocaleDateString("es-MX", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+        });
+    } catch {
+        return "Fecha reciente";
+    }
+};
+
 export default function UserRoutinesScreen() {
   const router = useRouter();
   const { user } = useAuth();
 
+<<<<<<< HEAD
   const [routines, setRoutines] = useState([]);
   const [featuredRoutines, setFeaturedRoutines] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("Todos");
+=======
+    const [routines, setRoutines] = useState([]);
+    const [latestRoutines, setLatestRoutines] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [selectedCategory, setSelectedCategory] = useState("Todos");
+>>>>>>> e3da7e70f0a31d403b96169003fd4eff8397a949
 
   useFocusEffect(
     useCallback(() => {
@@ -43,14 +80,45 @@ export default function UserRoutinesScreen() {
     }, []),
   );
 
+<<<<<<< HEAD
   useEffect(() => {
     if (!user?.uid) return;
     const unsubscribe = listenFeaturedExercisesForUser(user.uid, (data) => {
       setFeaturedRoutines(data);
+=======
+    useEffect(() => {
+        if (!user?.uid) return;
+
+        const unsubscribe = listenLatestRoutinesForUser(user.uid, (data) => {
+            setLatestRoutines(Array.isArray(data) ? data : []);
+        });
+
+        return () => unsubscribe();
+    }, [user?.uid]);
+
+    const fetchData = async () => {
+        setIsLoading(true);
+
+        try {
+            const data = await getRoutines();
+            setRoutines(Array.isArray(data) ? data : []);
+        } catch (error) {
+            console.error("Error fetching user routines:", error);
+            Alert.alert("Error", "No se pudieron cargar las rutinas.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const filteredRoutines = routines.filter((r) => {
+        if (selectedCategory === "Todos") return true;
+        return r.bodyPart === selectedCategory;
+>>>>>>> e3da7e70f0a31d403b96169003fd4eff8397a949
     });
     return () => unsubscribe();
   }, [user?.uid]);
 
+<<<<<<< HEAD
   const fetchData = async () => {
     setIsLoading(true);
 
@@ -64,12 +132,38 @@ export default function UserRoutinesScreen() {
       setIsLoading(false);
     }
   };
+=======
+    const renderLatestRoutineItem = ({ item }) => (
+        <TouchableOpacity
+            onPress={() =>
+                router.push({
+                    pathname: "/(user)/routine-detail",
+                    params: { routineId: item.id },
+                })
+            }
+            activeOpacity={0.9}
+            style={{ width: 280 }}
+            className="bg-[#1C1C1E] rounded-3xl overflow-hidden border border-white/10 mr-4"
+        >
+            <View className="p-6 relative flex-1 justify-between">
+                <View className="absolute top-0 right-0 p-6 opacity-10">
+                    <IconSymbol name="sparkles" size={80} color="#00E5FF" />
+                </View>
+
+                <View>
+                    <View className="bg-[#00E5FF]/20 self-start px-3 py-1.5 rounded-full mb-3 border border-[#00E5FF]/30">
+                        <Text className="text-[#00E5FF] text-[10px] font-black uppercase tracking-widest">
+                            NUEVA RUTINA
+                        </Text>
+                    </View>
+>>>>>>> e3da7e70f0a31d403b96169003fd4eff8397a949
 
   const filteredRoutines = routines.filter((r) => {
     if (selectedCategory === "Todos") return !r.featured && !r.isRecommended;
     return r.bodyPart === selectedCategory;
   });
 
+<<<<<<< HEAD
   const renderFeaturedItem = ({ item }) => (
     <TouchableOpacity
       onPress={() =>
@@ -94,6 +188,17 @@ export default function UserRoutinesScreen() {
               DESTACADO
             </Text>
           </View>
+=======
+                    {!!item.subtitle ? (
+                        <Text className="text-gray-400 font-bold text-sm mb-4" numberOfLines={2}>
+                            {item.subtitle}
+                        </Text>
+                    ) : (
+                        <Text className="text-gray-400 font-bold text-sm mb-4" numberOfLines={2}>
+                            {item.description || "Rutina creada recientemente para tu progreso."}
+                        </Text>
+                    )}
+>>>>>>> e3da7e70f0a31d403b96169003fd4eff8397a949
 
           <Text
             className="text-white text-2xl font-black mb-1"
@@ -102,6 +207,7 @@ export default function UserRoutinesScreen() {
             {item.title || "Rutina sin título"}
           </Text>
 
+<<<<<<< HEAD
           {!!item.subtitle && (
             <Text
               className="text-gray-400 font-bold text-sm mb-4"
@@ -127,6 +233,34 @@ export default function UserRoutinesScreen() {
               <Text className="text-gray-300 text-xs font-bold">
                 {item.durationMinutes || 0} min
               </Text>
+=======
+                        <View className="flex-row items-center gap-1.5">
+                            <IconSymbol name="calendar" size={14} color="#666" />
+                            <Text className="text-gray-300 text-xs font-bold">
+                                Creada: {formatDate(item.createdAt || item.assignedAt || item.updatedAt)}
+                            </Text>
+                        </View>
+                    </View>
+                </View>
+
+                <View className="mt-5 flex-row items-center justify-between border-t border-white/10 pt-4">
+                    <View className="flex-row items-center flex-1 pr-2">
+                        <View className="w-8 h-8 rounded-full bg-white/10 mr-3 items-center justify-center">
+                            <Text className="text-white font-bold">
+                                {item.coachName?.charAt(0) || "C"}
+                            </Text>
+                        </View>
+
+                        <Text className="text-gray-400 font-medium text-xs" numberOfLines={1}>
+                            Por {item.coachName || "Coach"}
+                        </Text>
+                    </View>
+
+                    <View className="bg-[#00E5FF] w-8 h-8 rounded-full items-center justify-center">
+                        <IconSymbol name="chevron.right" size={16} color="#000" />
+                    </View>
+                </View>
+>>>>>>> e3da7e70f0a31d403b96169003fd4eff8397a949
             </View>
 
             <View className="flex-row items-center gap-1.5">
@@ -211,12 +345,133 @@ export default function UserRoutinesScreen() {
                     decelerationRate="fast"
                   />
                 ) : (
+<<<<<<< HEAD
                   <View className="mx-5 bg-[#1C1C1E] p-6 rounded-3xl border border-white/10 items-center justify-center">
                     <Ionicons name="flame" size={32} color="#444" />
                     <Text className="text-gray-500 font-bold mt-2 text-center">
                       No hay rutinas destacadas ahora.
                     </Text>
                   </View>
+=======
+                    <ScrollView
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={{ paddingBottom: 120 }}
+                    >
+                        {selectedCategory === "Todos" && (
+                            <View className="mb-8">
+                                <Text className="px-5 text-white text-lg font-black mb-4 tracking-tight">
+                                    Últimas rutinas creadas
+                                </Text>
+
+                                {latestRoutines.length > 0 ? (
+                                    <FlatList
+                                        data={latestRoutines}
+                                        keyExtractor={(item) => item.id}
+                                        renderItem={renderLatestRoutineItem}
+                                        horizontal
+                                        showsHorizontalScrollIndicator={false}
+                                        contentContainerStyle={{ paddingHorizontal: 20 }}
+                                        snapToInterval={296}
+                                        decelerationRate="fast"
+                                    />
+                                ) : (
+                                    <View className="mx-5 bg-[#1C1C1E] p-6 rounded-3xl border border-white/10 items-center justify-center">
+                                        <IconSymbol name="sparkles" size={32} color="#444" />
+                                        <Text className="text-gray-500 font-bold mt-2 text-center">
+                                            Aún no hay rutinas recientes disponibles.
+                                        </Text>
+                                    </View>
+                                )}
+                            </View>
+                        )}
+
+                        <View className="mb-6">
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                contentContainerStyle={{ paddingHorizontal: 20 }}
+                            >
+                                {CATEGORIES.map((cat) => {
+                                    const isSelected = selectedCategory === cat;
+
+                                    return (
+                                        <TouchableOpacity
+                                            key={cat}
+                                            onPress={() => setSelectedCategory(cat)}
+                                            className={`mr-3 px-5 py-2.5 rounded-full border ${
+                                                isSelected
+                                                    ? "bg-[#00E5FF]/20 border-[#00E5FF]/50"
+                                                    : "bg-[#1C1C1E] border-white/10"
+                                            }`}
+                                        >
+                                            <Text
+                                                className={`font-black tracking-wide text-xs ${
+                                                    isSelected ? "text-[#00E5FF]" : "text-gray-400"
+                                                }`}
+                                            >
+                                                {cat.toUpperCase()}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </ScrollView>
+                        </View>
+
+                        <View className="px-5">
+                            <Text className="text-white text-lg font-black mb-4 tracking-tight">
+                                {selectedCategory === "Todos"
+                                    ? "Todas las Rutinas"
+                                    : `Rutinas de ${selectedCategory}`}
+                            </Text>
+
+                            {filteredRoutines.length === 0 ? (
+                                <View className="bg-[#1C1C1E] p-8 rounded-3xl border border-white/10 items-center justify-center mt-2">
+                                    <IconSymbol name="list.bullet" size={40} color="#444" />
+                                    <Text className="text-gray-500 font-bold mt-4 text-center">
+                                        No hay rutinas disponibles en esta categoría.
+                                    </Text>
+                                </View>
+                            ) : (
+                                filteredRoutines.map((routine) => (
+                                    <TouchableOpacity
+                                        key={routine.id}
+                                        onPress={() =>
+                                            router.push({
+                                                pathname: "/(user)/routine-detail",
+                                                params: { routineId: routine.id },
+                                            })
+                                        }
+                                        activeOpacity={0.8}
+                                        className="bg-[#1C1C1E] p-4 rounded-3xl mb-4 border border-white/10 flex-row items-center"
+                                    >
+                                        <View className="w-16 h-16 rounded-2xl bg-white/5 items-center justify-center mr-4">
+                                            <IconSymbol name="dumbbell.fill" size={24} color="#666" />
+                                        </View>
+
+                                        <View className="flex-1">
+                                            <Text className="text-white font-black text-lg" numberOfLines={1}>
+                                                {routine.title || "Rutina sin título"}
+                                            </Text>
+
+                                            <Text className="text-gray-400 font-medium text-xs mt-0.5">
+                                                {routine.bodyPart || "General"} • {routine.level || "Sin nivel"}
+                                            </Text>
+
+                                            <View className="flex-row items-center mt-2">
+                                                <IconSymbol name="timer" size={12} color="#666" />
+                                                <Text className="text-gray-500 text-[10px] font-bold ml-1">
+                                                    {routine.durationMinutes || 0} MIN
+                                                </Text>
+                                            </View>
+                                        </View>
+
+                                        <IconSymbol name="chevron.right" size={20} color="#444" />
+                                    </TouchableOpacity>
+                                ))
+                            )}
+                        </View>
+                    </ScrollView>
+>>>>>>> e3da7e70f0a31d403b96169003fd4eff8397a949
                 )}
               </View>
             )}
