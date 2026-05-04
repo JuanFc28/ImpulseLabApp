@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useRouter } from "expo-router";
-import { getRoutines, listenFeaturedExercisesForUser } from "@/src/services/gymService";
+import { getRoutines, listenLatestRoutinesForUser } from "@/src/services/gymService";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "@/src/context/AuthContext";
 
@@ -25,12 +25,38 @@ const CATEGORIES = [
     "Cardio",
 ];
 
+const formatDate = (value) => {
+    if (!value) return "Fecha reciente";
+
+    try {
+        let date;
+
+        if (value.seconds) {
+            date = new Date(value.seconds * 1000);
+        } else if (value instanceof Date) {
+            date = value;
+        } else {
+            date = new Date(value);
+        }
+
+        if (Number.isNaN(date.getTime())) return "Fecha reciente";
+
+        return date.toLocaleDateString("es-MX", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+        });
+    } catch {
+        return "Fecha reciente";
+    }
+};
+
 export default function UserRoutinesScreen() {
     const router = useRouter();
     const { user } = useAuth();
 
     const [routines, setRoutines] = useState([]);
-    const [featuredRoutines, setFeaturedRoutines] = useState([]);
+    const [latestRoutines, setLatestRoutines] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedCategory, setSelectedCategory] = useState("Todos");
 
@@ -42,9 +68,11 @@ export default function UserRoutinesScreen() {
 
     useEffect(() => {
         if (!user?.uid) return;
-        const unsubscribe = listenFeaturedExercisesForUser(user.uid, (data) => {
-            setFeaturedRoutines(data);
+
+        const unsubscribe = listenLatestRoutinesForUser(user.uid, (data) => {
+            setLatestRoutines(Array.isArray(data) ? data : []);
         });
+
         return () => unsubscribe();
     }, [user?.uid]);
 
@@ -63,11 +91,11 @@ export default function UserRoutinesScreen() {
     };
 
     const filteredRoutines = routines.filter((r) => {
-        if (selectedCategory === "Todos") return !r.featured && !r.isRecommended;
+        if (selectedCategory === "Todos") return true;
         return r.bodyPart === selectedCategory;
     });
 
-    const renderFeaturedItem = ({ item }) => (
+    const renderLatestRoutineItem = ({ item }) => (
         <TouchableOpacity
             onPress={() =>
                 router.push({
@@ -81,13 +109,13 @@ export default function UserRoutinesScreen() {
         >
             <View className="p-6 relative flex-1 justify-between">
                 <View className="absolute top-0 right-0 p-6 opacity-10">
-                    <IconSymbol name="flame.fill" size={80} color="#00E5FF" />
+                    <IconSymbol name="sparkles" size={80} color="#00E5FF" />
                 </View>
 
                 <View>
                     <View className="bg-[#00E5FF]/20 self-start px-3 py-1.5 rounded-full mb-3 border border-[#00E5FF]/30">
                         <Text className="text-[#00E5FF] text-[10px] font-black uppercase tracking-widest">
-                            DESTACADO
+                            NUEVA RUTINA
                         </Text>
                     </View>
 
@@ -95,15 +123,13 @@ export default function UserRoutinesScreen() {
                         {item.title || "Rutina sin título"}
                     </Text>
 
-                    {!!item.subtitle && (
+                    {!!item.subtitle ? (
                         <Text className="text-gray-400 font-bold text-sm mb-4" numberOfLines={2}>
                             {item.subtitle}
                         </Text>
-                    )}
-
-                    {!item.subtitle && !!item.description && (
+                    ) : (
                         <Text className="text-gray-400 font-bold text-sm mb-4" numberOfLines={2}>
-                            {item.description}
+                            {item.description || "Rutina creada recientemente para tu progreso."}
                         </Text>
                     )}
 
@@ -118,7 +144,7 @@ export default function UserRoutinesScreen() {
                         <View className="flex-row items-center gap-1.5">
                             <IconSymbol name="calendar" size={14} color="#666" />
                             <Text className="text-gray-300 text-xs font-bold">
-                                Vence: {item.featuredExpiresAt ? new Date(item.featuredExpiresAt.seconds * 1000).toLocaleDateString() : "Pronto"}
+                                Creada: {formatDate(item.createdAt || item.assignedAt || item.updatedAt)}
                             </Text>
                         </View>
                     </View>
@@ -128,12 +154,12 @@ export default function UserRoutinesScreen() {
                     <View className="flex-row items-center flex-1 pr-2">
                         <View className="w-8 h-8 rounded-full bg-white/10 mr-3 items-center justify-center">
                             <Text className="text-white font-bold">
-                                {item.assignedByName?.charAt(0) || item.coachName?.charAt(0) || "C"}
+                                {item.coachName?.charAt(0) || "C"}
                             </Text>
                         </View>
 
                         <Text className="text-gray-400 font-medium text-xs" numberOfLines={1}>
-                            Por {item.assignedByName || item.coachName || "Coach"}
+                            Por {item.coachName || "Coach"}
                         </Text>
                     </View>
 
@@ -172,13 +198,14 @@ export default function UserRoutinesScreen() {
                         {selectedCategory === "Todos" && (
                             <View className="mb-8">
                                 <Text className="px-5 text-white text-lg font-black mb-4 tracking-tight">
-                                    Recomendado para ti
+                                    Últimas rutinas creadas
                                 </Text>
-                                {featuredRoutines.length > 0 ? (
+
+                                {latestRoutines.length > 0 ? (
                                     <FlatList
-                                        data={featuredRoutines}
+                                        data={latestRoutines}
                                         keyExtractor={(item) => item.id}
-                                        renderItem={renderFeaturedItem}
+                                        renderItem={renderLatestRoutineItem}
                                         horizontal
                                         showsHorizontalScrollIndicator={false}
                                         contentContainerStyle={{ paddingHorizontal: 20 }}
@@ -187,9 +214,9 @@ export default function UserRoutinesScreen() {
                                     />
                                 ) : (
                                     <View className="mx-5 bg-[#1C1C1E] p-6 rounded-3xl border border-white/10 items-center justify-center">
-                                        <IconSymbol name="flame" size={32} color="#444" />
+                                        <IconSymbol name="sparkles" size={32} color="#444" />
                                         <Text className="text-gray-500 font-bold mt-2 text-center">
-                                            No featured exercises available right now.
+                                            Aún no hay rutinas recientes disponibles.
                                         </Text>
                                     </View>
                                 )}
