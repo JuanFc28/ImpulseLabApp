@@ -12,6 +12,11 @@ import {
     setDoc,
     increment,
     deleteDoc,
+    onSnapshot,
+    serverTimestamp,
+    Timestamp,
+    orderBy,
+    limit,
 } from "firebase/firestore";
 
 const getLocalDateISO = () => {
@@ -403,11 +408,12 @@ export const getUserGymAttendance = async (userId) => {
 
 export const createRoutine = async (routineData) => {
     try {
-        await addDoc(collection(db, "routines"), {
+        const docRef = await addDoc(collection(db, "routines"), {
             ...routineData,
-            createdAt: new Date(),
-            updatedAt: new Date(),
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
         });
+        return docRef.id;
     } catch (e) {
         console.error("Error creating routine: ", e);
         throw e;
@@ -523,4 +529,23 @@ export const markRoutineCompleted = async (userId, routine) => {
         console.error("Error marking routine completed: ", e);
         throw e;
     }
+};
+
+export const listenLatestRoutines = (callback) => {
+    const q = query(
+        collection(db, "routines"),
+        orderBy("createdAt", "desc"),
+        limit(10)
+    );
+
+    return onSnapshot(q, (snap) => {
+        const results = [];
+        snap.docs.forEach((docItem) => {
+            results.push({ id: docItem.id, ...docItem.data() });
+        });
+        callback(results);
+    }, (error) => {
+        console.error("Error listening to latest routines:", error);
+        callback([]);
+    });
 };

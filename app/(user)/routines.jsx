@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
     View,
     Text,
@@ -6,12 +6,14 @@ import {
     ScrollView,
     ActivityIndicator,
     Alert,
+    FlatList,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useRouter } from "expo-router";
-import { getRoutines } from "@/src/services/gymService";
+import { getRoutines, listenLatestRoutines } from "@/src/services/gymService";
 import { useFocusEffect } from "@react-navigation/native";
+import { useAuth } from "@/src/context/AuthContext";
 
 const CATEGORIES = [
     "Todos",
@@ -25,8 +27,10 @@ const CATEGORIES = [
 
 export default function UserRoutinesScreen() {
     const router = useRouter();
+    const { user } = useAuth();
 
     const [routines, setRoutines] = useState([]);
+    const [featuredRoutines, setFeaturedRoutines] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedCategory, setSelectedCategory] = useState("Todos");
 
@@ -35,6 +39,14 @@ export default function UserRoutinesScreen() {
             fetchData();
         }, [])
     );
+
+    useEffect(() => {
+        if (!user?.uid) return;
+        const unsubscribe = listenLatestRoutines((data) => {
+            setFeaturedRoutines(data);
+        });
+        return () => unsubscribe();
+    }, [user?.uid]);
 
     const fetchData = async () => {
         setIsLoading(true);
@@ -50,12 +62,97 @@ export default function UserRoutinesScreen() {
         }
     };
 
-    const recommendedRoutine = routines.find((r) => r.isRecommended);
-
     const filteredRoutines = routines.filter((r) => {
-        if (selectedCategory === "Todos") return !r.isRecommended;
+        if (selectedCategory === "Todos") return true;
         return r.bodyPart === selectedCategory;
     });
+
+    const renderFeaturedItem = ({ item }) => (
+        <TouchableOpacity
+            onPress={() =>
+                router.push({
+                    pathname: "/(user)/routine-detail",
+                    params: { routineId: item.id },
+                })
+            }
+            activeOpacity={0.9}
+            style={{ width: 280 }}
+            className="bg-[#1C1C1E] rounded-3xl overflow-hidden border border-white/10 mr-4"
+        >
+            <View className="p-6 relative flex-1 justify-between">
+                <View className="absolute top-0 right-0 p-6 opacity-10">
+                    <IconSymbol name="flame.fill" size={80} color="#00E5FF" />
+                </View>
+
+                <View>
+                    <View className="bg-[#00E5FF]/20 self-start px-3 py-1.5 rounded-full mb-3 border border-[#00E5FF]/30">
+                        <Text className="text-[#00E5FF] text-[10px] font-black uppercase tracking-widest">
+                            NUEVA
+                        </Text>
+                    </View>
+
+                    <Text className="text-white text-2xl font-black mb-1" numberOfLines={2}>
+                        {item.title || "Rutina sin título"}
+                    </Text>
+
+                    {!!item.subtitle && (
+                        <Text className="text-gray-400 font-bold text-sm mb-4" numberOfLines={2}>
+                            {item.subtitle}
+                        </Text>
+                    )}
+
+                    {!item.subtitle && !!item.description && (
+                        <Text className="text-gray-400 font-bold text-sm mb-4" numberOfLines={2}>
+                            {item.description}
+                        </Text>
+                    )}
+
+                    <View className="flex-row items-center gap-4 mt-2 flex-wrap">
+                        <View className="flex-row items-center gap-1.5">
+                            <IconSymbol name="timer" size={14} color="#666" />
+                            <Text className="text-gray-300 text-xs font-bold">
+                                {item.durationMinutes || 0} min
+                            </Text>
+                        </View>
+
+                        {item.exerciseCount > 0 && (
+                            <View className="flex-row items-center gap-1.5">
+                                <IconSymbol name="dumbbell" size={14} color="#666" />
+                                <Text className="text-gray-300 text-xs font-bold">
+                                    {item.exerciseCount} ej
+                                </Text>
+                            </View>
+                        )}
+
+                        <View className="flex-row items-center gap-1.5">
+                            <IconSymbol name="calendar" size={14} color="#666" />
+                            <Text className="text-gray-300 text-xs font-bold">
+                                Creada el: {item.createdAt ? new Date(item.createdAt.seconds * 1000).toLocaleDateString() : "Reciente"}
+                            </Text>
+                        </View>
+                    </View>
+                </View>
+
+                <View className="mt-5 flex-row items-center justify-between border-t border-white/10 pt-4">
+                    <View className="flex-row items-center flex-1 pr-2">
+                        <View className="w-8 h-8 rounded-full bg-white/10 mr-3 items-center justify-center">
+                            <Text className="text-white font-bold">
+                                {item.assignedByName?.charAt(0) || item.coachName?.charAt(0) || "C"}
+                            </Text>
+                        </View>
+
+                        <Text className="text-gray-400 font-medium text-xs" numberOfLines={1}>
+                            Por {item.assignedByName || item.coachName || "Coach"}
+                        </Text>
+                    </View>
+
+                    <View className="bg-[#00E5FF] w-8 h-8 rounded-full items-center justify-center">
+                        <IconSymbol name="chevron.right" size={16} color="#000" />
+                    </View>
+                </View>
+            </View>
+        </TouchableOpacity>
+    );
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: "#0B0B0F" }}>
@@ -81,84 +178,30 @@ export default function UserRoutinesScreen() {
                         showsVerticalScrollIndicator={false}
                         contentContainerStyle={{ paddingBottom: 120 }}
                     >
-                        {recommendedRoutine && selectedCategory === "Todos" && (
-                            <View className="px-5 mb-8">
-                                <Text className="text-white text-lg font-black mb-4 tracking-tight">
-                                    Recomendado para ti
+                        {selectedCategory === "Todos" && (
+                            <View className="mb-8">
+                                <Text className="px-5 text-white text-lg font-black mb-4 tracking-tight">
+                                    Latest routines
                                 </Text>
-
-                                <TouchableOpacity
-                                    onPress={() =>
-                                        router.push({
-                                            pathname: "/(user)/routine-detail",
-                                            params: { routineId: recommendedRoutine.id },
-                                        })
-                                    }
-                                    activeOpacity={0.9}
-                                    className="bg-[#1C1C1E] rounded-3xl overflow-hidden border border-white/10"
-                                >
-                                    <View className="p-6 relative">
-                                        <View className="absolute top-0 right-0 p-6 opacity-10">
-                                            <IconSymbol name="flame.fill" size={80} color="#00E5FF" />
-                                        </View>
-
-                                        <View className="bg-[#00E5FF]/20 self-start px-3 py-1.5 rounded-full mb-3 border border-[#00E5FF]/30">
-                                            <Text className="text-[#00E5FF] text-[10px] font-black uppercase tracking-widest">
-                                                DESTACADO
-                                            </Text>
-                                        </View>
-
-                                        <Text className="text-white text-2xl font-black mb-1 w-3/4">
-                                            {recommendedRoutine.title || "Rutina sin título"}
+                                {featuredRoutines.length > 0 ? (
+                                    <FlatList
+                                        data={featuredRoutines}
+                                        keyExtractor={(item) => item.id}
+                                        renderItem={renderFeaturedItem}
+                                        horizontal
+                                        showsHorizontalScrollIndicator={false}
+                                        contentContainerStyle={{ paddingHorizontal: 20 }}
+                                        snapToInterval={296}
+                                        decelerationRate="fast"
+                                    />
+                                ) : (
+                                    <View className="mx-5 bg-[#1C1C1E] p-6 rounded-3xl border border-white/10 items-center justify-center">
+                                        <IconSymbol name="dumbbell" size={32} color="#444" />
+                                        <Text className="text-gray-500 font-bold mt-2 text-center">
+                                            No routines available right now.
                                         </Text>
-
-                                        {!!recommendedRoutine.subtitle && (
-                                            <Text className="text-gray-400 font-bold text-sm mb-4">
-                                                {recommendedRoutine.subtitle}
-                                            </Text>
-                                        )}
-
-                                        {!recommendedRoutine.subtitle && !!recommendedRoutine.description && (
-                                            <Text className="text-gray-400 font-bold text-sm mb-4">
-                                                {recommendedRoutine.description}
-                                            </Text>
-                                        )}
-
-                                        <View className="flex-row items-center gap-4 mt-2">
-                                            <View className="flex-row items-center gap-1.5">
-                                                <IconSymbol name="timer" size={14} color="#666" />
-                                                <Text className="text-gray-300 text-xs font-bold">
-                                                    {recommendedRoutine.durationMinutes || 0} min
-                                                </Text>
-                                            </View>
-
-                                            <View className="flex-row items-center gap-1.5">
-                                                <IconSymbol name="chart.bar.fill" size={14} color="#666" />
-                                                <Text className="text-gray-300 text-xs font-bold">
-                                                    {recommendedRoutine.level || "Sin nivel"}
-                                                </Text>
-                                            </View>
-                                        </View>
-
-                                        <View className="mt-5 flex-row items-center justify-between border-t border-white/10 pt-4">
-                                            <View className="flex-row items-center">
-                                                <View className="w-8 h-8 rounded-full bg-white/10 mr-3 items-center justify-center">
-                                                    <Text className="text-white font-bold">
-                                                        {recommendedRoutine.coachName?.charAt(0) || "C"}
-                                                    </Text>
-                                                </View>
-
-                                                <Text className="text-gray-400 font-medium text-xs">
-                                                    Por {recommendedRoutine.coachName || "Coach"}
-                                                </Text>
-                                            </View>
-
-                                            <View className="bg-[#00E5FF] w-8 h-8 rounded-full items-center justify-center">
-                                                <IconSymbol name="chevron.right" size={16} color="#000" />
-                                            </View>
-                                        </View>
                                     </View>
-                                </TouchableOpacity>
+                                )}
                             </View>
                         )}
 
