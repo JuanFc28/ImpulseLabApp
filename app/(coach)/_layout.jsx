@@ -3,7 +3,7 @@ import React from "react";
 import { Platform } from "react-native";
 
 import { HapticTab } from "@/components/haptic-tab";
-import { IconSymbol } from "@/components/ui/icon-symbol";
+import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function CoachLayout() {
@@ -30,7 +30,8 @@ export default function CoachLayout() {
         options={{
           title: "Agenda",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={24} name="calendar" color={color} />
+            /* calendar -> calendar */
+            <Ionicons size={24} name="calendar" color={color} />
           ),
         }}
       />
@@ -40,7 +41,8 @@ export default function CoachLayout() {
         options={{
           title: "Atletas",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={24} name="person.3.fill" color={color} />
+            /* person.3.fill -> people */
+            <Ionicons size={24} name="people" color={color} />
           ),
         }}
       />
@@ -50,7 +52,8 @@ export default function CoachLayout() {
         options={{
           title: "Rutinas",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={24} name="dumbbell.fill" color={color} />
+            /* dumbbell.fill -> barbell */
+            <Ionicons size={24} name="barbell" color={color} />
           ),
         }}
       />
@@ -60,11 +63,8 @@ export default function CoachLayout() {
         options={{
           title: "Perfil",
           tabBarIcon: ({ color }) => (
-            <IconSymbol
-              size={24}
-              name="person.crop.circle.fill"
-              color={color}
-            />
+            /* person.crop.circle.fill -> person-circle */
+            <Ionicons size={24} name="person-circle" color={color} />
           ),
         }}
       />

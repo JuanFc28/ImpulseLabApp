@@ -2,7 +2,7 @@ import { Tabs } from "expo-router";
 import React from "react";
 import { Platform } from "react-native";
 import { HapticTab } from "@/components/haptic-tab";
-import { IconSymbol } from "@/components/ui/icon-symbol";
+import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function UserLayout() {
@@ -30,7 +30,8 @@ export default function UserLayout() {
         options={{
           title: "Inicio",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={24} name="house.fill" color={color} />
+            /* CORRECCIÓN: house.fill -> home */
+            <Ionicons size={24} name="home" color={color} />
           ),
         }}
       />
@@ -41,7 +42,8 @@ export default function UserLayout() {
         options={{
           title: "Rutinas",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={24} name="dumbbell.fill" color={color} />
+            /* CORRECCIÓN: dumbbell.fill -> barbell */
+            <Ionicons size={24} name="barbell" color={color} />
           ),
         }}
       />
@@ -52,7 +54,8 @@ export default function UserLayout() {
         options={{
           title: "Explorar",
           tabBarIcon: ({ color }) => (
-            <IconSymbol size={24} name="magnifyingglass" color={color} />
+            /* CORRECCIÓN: magnifyingglass -> search */
+            <Ionicons size={24} name="search" color={color} />
           ),
         }}
       />
@@ -63,11 +66,8 @@ export default function UserLayout() {
         options={{
           title: "Perfil",
           tabBarIcon: ({ color }) => (
-            <IconSymbol
-              size={24}
-              name="person.crop.circle.fill"
-              color={color}
-            />
+            /* CORRECCIÓN: person.crop.circle.fill -> person-circle */
+            <Ionicons size={24} name="person-circle" color={color} />
           ),
         }}
       />

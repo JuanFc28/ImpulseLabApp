@@ -1,6 +1,6 @@
 import { ThemedText } from "@/components/themed-text";
 import { ThemedView } from "@/components/themed-view";
-import { IconSymbol } from "@/components/ui/icon-symbol";
+import { Ionicons } from "@expo/vector-icons";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -23,6 +23,11 @@ export default function LoginScreen() {
   const [error, setError] = useState("");
 
   const handleAuthenticate = async () => {
+    if (!email || !password || (!isLogin && !name)) {
+      setError("Por favor completa todos los campos.");
+      return;
+    }
+
     setLoading(true);
     setError("");
     try {
@@ -46,7 +51,8 @@ export default function LoginScreen() {
       >
         <View style={styles.header}>
           <View style={styles.iconContainer}>
-            <IconSymbol name="bolt.fill" size={50} color="#00E5FF" />
+            {/* CORRECCIÓN: bolt.fill no existe en Ionicons, usamos 'flash' */}
+            <Ionicons name="flash" size={50} color="#00E5FF" />
           </View>
           <ThemedText type="title" style={styles.title}>
             IMPULSE LAB
@@ -96,6 +102,7 @@ export default function LoginScreen() {
             style={styles.mainButton}
             onPress={handleAuthenticate}
             disabled={loading}
+            activeOpacity={0.8}
           >
             {loading ? (
               <ActivityIndicator color="#000" />
@@ -111,7 +118,12 @@ export default function LoginScreen() {
           <ThemedText style={styles.footerText}>
             {isLogin ? "¿No tienes cuenta? " : "¿Ya tienes cuenta? "}
           </ThemedText>
-          <TouchableOpacity onPress={() => setIsLogin(!isLogin)}>
+          <TouchableOpacity
+            onPress={() => {
+              setIsLogin(!isLogin);
+              setError(""); // Limpiar error al cambiar de modo
+            }}
+          >
             <ThemedText style={styles.footerLink}>
               {isLogin ? "Regístrate" : "Inicia Sesión"}
             </ThemedText>
@@ -129,7 +141,7 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 80,
     height: 80,
-    borderRadius: 20,
+    borderRadius: 25,
     backgroundColor: "rgba(0, 229, 255, 0.1)",
     justifyContent: "center",
     alignItems: "center",
@@ -142,7 +154,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#111",
     borderWidth: 1,
     borderColor: "#222",
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 16,
     color: "#FFF",
     marginBottom: 15,
@@ -150,8 +162,8 @@ const styles = StyleSheet.create({
   },
   mainButton: {
     backgroundColor: "#00E5FF",
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: 18,
+    borderRadius: 14,
     alignItems: "center",
     marginTop: 10,
     shadowColor: "#00E5FF",
@@ -160,8 +172,18 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
-  mainButtonText: { color: "#000", fontWeight: "bold", fontSize: 16 },
-  errorText: { color: "#FF3B30", marginBottom: 10, textAlign: "center" },
+  mainButtonText: {
+    color: "#000",
+    fontWeight: "bold",
+    fontSize: 16,
+    textTransform: "uppercase",
+  },
+  errorText: {
+    color: "#FF3B30",
+    marginBottom: 15,
+    textAlign: "center",
+    fontWeight: "600",
+  },
   footer: { flexDirection: "row", justifyContent: "center", marginTop: 30 },
   footerText: { color: "#888", fontSize: 14 },
   footerLink: { color: "#00E5FF", fontWeight: "bold", fontSize: 14 },

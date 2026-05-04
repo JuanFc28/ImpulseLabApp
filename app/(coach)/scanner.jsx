@@ -1,19 +1,25 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+} from "react-native";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { IconSymbol } from "@/components/ui/icon-symbol";
+import { Ionicons } from "@expo/vector-icons";
 import { validateAttendance } from "@/src/services/gymService";
 
 export default function ScannerScreen() {
   const router = useRouter();
-  const { classId } = useLocalSearchParams(); 
-  
+  const { classId } = useLocalSearchParams();
+
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  
+
   const [athleteData, setAthleteData] = useState(null);
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -29,13 +35,14 @@ export default function ScannerScreen() {
       const cid = parsedData.classId || parsedData.classID || parsedData.cId;
 
       if (uid && cid) {
-          
         if (classId && cid !== classId) {
-            setIsError(true);
-            const wrongClass = parsedData.className || "otra clase";
-            setErrorMessage(`Ticket rechazado. Este pase pertenece a ${wrongClass}, no a la clase actual.`);
-            setIsProcessing(false);
-            return;
+          setIsError(true);
+          const wrongClass = parsedData.className || "otra clase";
+          setErrorMessage(
+            `Ticket rechazado. Este pase pertenece a ${wrongClass}, no a la clase actual.`,
+          );
+          setIsProcessing(false);
+          return;
         }
 
         // Validacion en Firebase
@@ -50,7 +57,9 @@ export default function ScannerScreen() {
         }
       } else {
         setIsError(true);
-        setErrorMessage("Código QR no compatible con el sistema de Impulse Lab.");
+        setErrorMessage(
+          "Código QR no compatible con el sistema de Impulse Lab.",
+        );
       }
     } catch (error) {
       setIsError(true);
@@ -71,8 +80,13 @@ export default function ScannerScreen() {
   if (!permission.granted) {
     return (
       <View className="flex-1 bg-impulse-dark justify-center items-center px-6">
-        <Text className="text-white text-center mb-6">Necesitamos acceso a la cámara para escanear los accesos.</Text>
-        <TouchableOpacity onPress={requestPermission} className="bg-orange-500 py-4 px-8 rounded-full">
+        <Text className="text-white text-center mb-6">
+          Necesitamos acceso a la cámara para escanear los accesos.
+        </Text>
+        <TouchableOpacity
+          onPress={requestPermission}
+          className="bg-orange-500 py-4 px-8 rounded-full"
+        >
           <Text className="text-black font-black">Permitir Cámara</Text>
         </TouchableOpacity>
       </View>
@@ -81,20 +95,20 @@ export default function ScannerScreen() {
 
   return (
     <View className="flex-1 bg-black">
-      
       {/* BOTÓN REGRESAR */}
       <SafeAreaView className="absolute top-0 w-full z-10 px-5 pt-4">
         <TouchableOpacity
-            onPress={() => router.back()}
-            className="w-12 h-12 bg-black/60 rounded-full items-center justify-center border border-white/20 shadow-lg"
+          onPress={() => router.back()}
+          className="w-12 h-12 bg-black/60 rounded-full items-center justify-center border border-white/20 shadow-lg"
         >
-            <IconSymbol name="chevron.left" size={24} color="#FF9500" />
+          {/* CORRECCIÓN: chevron.left -> chevron-back */}
+          <Ionicons name="chevron-back" size={24} color="#FF9500" />
         </TouchableOpacity>
       </SafeAreaView>
 
       {/* CÁMARA */}
-      <CameraView 
-        style={StyleSheet.absoluteFillObject} 
+      <CameraView
+        style={StyleSheet.absoluteFillObject}
         facing="back"
         onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
         barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
@@ -109,52 +123,90 @@ export default function ScannerScreen() {
             <View className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-orange-500 rounded-br-3xl" />
           </View>
         )}
-        {!scanned && <Text className="text-white font-bold mt-8">Apunta al código QR del atleta</Text>}
+        {!scanned && (
+          <Text className="text-white font-bold mt-8">
+            Apunta al código QR del atleta
+          </Text>
+        )}
       </View>
 
       {scanned && (
         <View className="absolute bottom-0 w-full bg-impulse-dark p-8 rounded-t-[40px] border-t border-white/10 shadow-2xl">
           {isProcessing ? (
-             <View className="items-center py-10">
-               <ActivityIndicator size="large" color="#FF9500" />
-               <Text className="text-gray-400 font-bold mt-4 uppercase tracking-widest text-xs">Validando en base de datos...</Text>
-             </View>
+            <View className="items-center py-10">
+              <ActivityIndicator size="large" color="#FF9500" />
+              <Text className="text-gray-400 font-bold mt-4 uppercase tracking-widest text-xs">
+                Validando en base de datos...
+              </Text>
+            </View>
           ) : isError ? (
-             // ERROR
-             <View className="items-center">
-               <View className="w-20 h-20 bg-red-500/20 rounded-full items-center justify-center mb-4 border-2 border-red-500/50">
-                  <IconSymbol name="xmark" size={40} color="#EF4444" />
-               </View>
-               <Text className="text-red-500 text-xs font-black tracking-[3px] uppercase mb-2">Acceso Denegado</Text>
-               <Text className="text-white text-center font-bold mb-8 px-4">{errorMessage}</Text>
-               <View className="flex-row gap-4 w-full">
-                   <TouchableOpacity onPress={() => router.back()} className="flex-1 bg-white/5 border border-white/10 py-5 rounded-2xl items-center">
-                     <Text className="text-white font-black tracking-widest">SALIR</Text>
-                   </TouchableOpacity>
-                   <TouchableOpacity onPress={resetScanner} className="flex-1 bg-impulse-gray border border-white/10 py-5 rounded-2xl items-center shadow-lg">
-                     <Text className="text-white font-black tracking-widest">REINTENTAR</Text>
-                   </TouchableOpacity>
-               </View>
-             </View>
+            // ERROR
+            <View className="items-center">
+              <View className="w-20 h-20 bg-red-500/20 rounded-full items-center justify-center mb-4 border-2 border-red-500/50">
+                {/* CORRECCIÓN: xmark -> close */}
+                <Ionicons name="close" size={40} color="#EF4444" />
+              </View>
+              <Text className="text-red-500 text-xs font-black tracking-[3px] uppercase mb-2">
+                Acceso Denegado
+              </Text>
+              <Text className="text-white text-center font-bold mb-8 px-4">
+                {errorMessage}
+              </Text>
+              <View className="flex-row gap-4 w-full">
+                <TouchableOpacity
+                  onPress={() => router.back()}
+                  className="flex-1 bg-white/5 border border-white/10 py-5 rounded-2xl items-center"
+                >
+                  <Text className="text-white font-black tracking-widest">
+                    SALIR
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={resetScanner}
+                  className="flex-1 bg-impulse-gray border border-white/10 py-5 rounded-2xl items-center shadow-lg"
+                >
+                  <Text className="text-white font-black tracking-widest">
+                    REINTENTAR
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           ) : (
-             // ÉXITO
-             <View className="items-center">
-               <View className="w-20 h-20 bg-green-500/20 rounded-full items-center justify-center mb-4 border-2 border-green-500/50">
-                  <IconSymbol name="checkmark" size={40} color="#10B981" />
-               </View>
-               <Text className="text-green-500 text-xs font-black tracking-[3px] uppercase mb-1">Acceso Autorizado</Text>
-               <Text className="text-white text-3xl font-black mb-1">{athleteData?.name || athleteData?.userName}</Text>
-               <Text className="text-gray-400 font-medium mb-8">Clase: {athleteData?.className || "Confirmada"}</Text>
-               
-               <View className="flex-row gap-4 w-full">
-                   <TouchableOpacity onPress={() => router.back()} className="flex-1 bg-white/5 border border-white/10 py-5 rounded-2xl items-center">
-                     <Text className="text-white font-black tracking-widest">VOLVER</Text>
-                   </TouchableOpacity>
-                   <TouchableOpacity onPress={resetScanner} className="flex-2 bg-orange-500 py-5 px-8 rounded-2xl items-center shadow-lg shadow-orange-500/30">
-                     <Text className="text-black font-black tracking-widest">SIGUIENTE</Text>
-                   </TouchableOpacity>
-               </View>
-             </View>
+            // ÉXITO
+            <View className="items-center">
+              <View className="w-20 h-20 bg-green-500/20 rounded-full items-center justify-center mb-4 border-2 border-green-500/50">
+                {/* CORRECCIÓN: checkmark -> checkmark-sharp */}
+                <Ionicons name="checkmark-sharp" size={40} color="#10B981" />
+              </View>
+              <Text className="text-green-500 text-xs font-black tracking-[3px] uppercase mb-1">
+                Acceso Autorizado
+              </Text>
+              <Text className="text-white text-3xl font-black mb-1">
+                {athleteData?.name || athleteData?.userName}
+              </Text>
+              <Text className="text-gray-400 font-medium mb-8">
+                Clase: {athleteData?.className || "Confirmada"}
+              </Text>
+
+              <View className="flex-row gap-4 w-full">
+                <TouchableOpacity
+                  onPress={() => router.back()}
+                  className="flex-1 bg-white/5 border border-white/10 py-5 rounded-2xl items-center"
+                >
+                  <Text className="text-white font-black tracking-widest">
+                    VOLVER
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={resetScanner}
+                  className="flex-2 bg-orange-500 py-5 px-8 rounded-2xl items-center shadow-lg shadow-orange-500/30"
+                >
+                  <Text className="text-black font-black tracking-widest">
+                    SIGUIENTE
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           )}
         </View>
       )}
