@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
     View,
     Text,
@@ -15,35 +15,48 @@ import { IconSymbol } from "@/components/ui/icon-symbol";
 import { db } from "@/src/config/firebase";
 import {
     doc,
-    getDoc,
     collection,
     query,
     where,
     onSnapshot,
 } from "firebase/firestore";
-import { evaluateAthlete, cancelClass } from "@/src/services/gymService";
+import {
+    evaluateAthlete,
+    cancelClass,
+    restoreCancelledClassDate,
+    restoreCancelledClassWeek,
+} from "@/src/services/gymService";
 
 const getLocalDateISO = () => {
     const now = new Date();
+
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
         now.getDate()
     ).padStart(2, "0")}`;
 };
 
+const normalizeParam = (value) => {
+    if (Array.isArray(value)) return value[0];
+    return value;
+};
+
 export default function ClassDetailScreen() {
     const router = useRouter();
-    const { classId, date } = useLocalSearchParams();
+    const params = useLocalSearchParams();
 
-    const selectedDate = date || getLocalDateISO();
+    const classId = normalizeParam(params.classId);
+    const selectedDate = normalizeParam(params.date) || getLocalDateISO();
 
     const [classData, setClassData] = useState(null);
     const [reservations, setReservations] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoadingClass, setIsLoadingClass] = useState(true);
+    const [isLoadingReservations, setIsLoadingReservations] = useState(true);
 
     const [evalModalVisible, setEvalModalVisible] = useState(false);
     const [selectedReservation, setSelectedReservation] = useState(null);
     const [isSavingEval, setIsSavingEval] = useState(false);
     const [isCancelling, setIsCancelling] = useState(false);
+    const [isRestoring, setIsRestoring] = useState(false);
 
     const [evalScores, setEvalScores] = useState({
         rutina: 1,
@@ -51,33 +64,56 @@ export default function ClassDetailScreen() {
         indicaciones: 1,
     });
 
-    const isClassCancelled =
-        classData?.status === "cancelled" ||
-        classData?.active === false ||
-        (Array.isArray(classData?.cancelledDates) && classData.cancelledDates.includes(selectedDate));
+    const isLoading = isLoadingClass || isLoadingReservations;
+
+    const isDateCancelled =
+        Array.isArray(classData?.cancelledDates) &&
+        classData.cancelledDates.includes(selectedDate);
+
+    const isClassCancelled = isDateCancelled;
+
+    const canRestoreSelectedDate = isDateCancelled;
 
     useEffect(() => {
-        if (!classId) return;
+        if (!classId) {
+            setIsLoadingClass(false);
+            return undefined;
+        }
 
-        setIsLoading(true);
+        setIsLoadingClass(true);
 
-        const fetchClassData = async () => {
-            try {
-                const classRef = doc(db, "classes", classId);
-                const classSnap = await getDoc(classRef);
+        const classRef = doc(db, "classes", classId);
 
+        const unsubscribeClass = onSnapshot(
+            classRef,
+            (classSnap) => {
                 if (classSnap.exists()) {
                     setClassData({
                         id: classSnap.id,
                         ...classSnap.data(),
                     });
+                } else {
+                    setClassData(null);
                 }
-            } catch (error) {
-                console.error("Error al cargar clase:", error);
-            }
-        };
 
-        fetchClassData();
+                setIsLoadingClass(false);
+            },
+            (error) => {
+                console.error("Error escuchando clase:", error);
+                setIsLoadingClass(false);
+            }
+        );
+
+        return () => unsubscribeClass();
+    }, [classId]);
+
+    useEffect(() => {
+        if (!classId || !selectedDate) {
+            setIsLoadingReservations(false);
+            return undefined;
+        }
+
+        setIsLoadingReservations(true);
 
         const q = query(
             collection(db, "reservations"),
@@ -85,30 +121,34 @@ export default function ClassDetailScreen() {
             where("date", "==", selectedDate)
         );
 
-        const unsubscribe = onSnapshot(
+        const unsubscribeReservations = onSnapshot(
             q,
             (querySnapshot) => {
-                try {
-                    const loadedReservations = querySnapshot.docs.map((currentDoc) => ({
-                        id: currentDoc.id,
-                        ...currentDoc.data(),
-                    }));
+                const loadedReservations = querySnapshot.docs.map((currentDoc) => ({
+                    id: currentDoc.id,
+                    ...currentDoc.data(),
+                }));
 
-                    setReservations(loadedReservations);
-                    setIsLoading(false);
-                } catch (err) {
-                    console.error("Error procesando snapshot:", err);
-                    setIsLoading(false);
-                }
+                setReservations(loadedReservations);
+                setIsLoadingReservations(false);
             },
             (error) => {
                 console.error("Error escuchando reservaciones:", error);
-                setIsLoading(false);
+                setReservations([]);
+                setIsLoadingReservations(false);
             }
         );
 
-        return () => unsubscribe();
+        return () => unsubscribeReservations();
     }, [classId, selectedDate]);
+
+    const attendedCount = useMemo(() => {
+        return reservations.filter((reservation) => reservation?.status === "attended").length;
+    }, [reservations]);
+
+    const activeReservations = useMemo(() => {
+        return reservations.filter((reservation) => reservation?.status !== "cancelled");
+    }, [reservations]);
 
     const openEvaluation = (reservation) => {
         if (isClassCancelled) {
@@ -132,7 +172,13 @@ export default function ClassDetailScreen() {
         setSelectedReservation(reservation);
 
         if (reservation?.isEvaluated) {
-            setEvalScores(reservation.evaluation);
+            setEvalScores(
+                reservation.evaluation || {
+                    rutina: 1,
+                    cardio: 1,
+                    indicaciones: 1,
+                }
+            );
         } else {
             setEvalScores({
                 rutina: 1,
@@ -156,40 +202,73 @@ export default function ClassDetailScreen() {
 
         setIsSavingEval(true);
 
-        const totalScore =
-            evalScores.rutina + evalScores.cardio + evalScores.indicaciones;
+        try {
+            const totalScore =
+                evalScores.rutina + evalScores.cardio + evalScores.indicaciones;
 
-        const percentage = Math.round((totalScore / 3) * 100);
+            const percentage = Math.round((totalScore / 3) * 100);
 
-        let performanceLevel = "Bajo";
+            let performanceLevel = "Bajo";
 
-        if (percentage === 100) {
-            performanceLevel = "Excelente";
-        } else if (percentage >= 70) {
-            performanceLevel = "Bueno";
-        }
+            if (percentage === 100) {
+                performanceLevel = "Excelente";
+            } else if (percentage >= 70) {
+                performanceLevel = "Bueno";
+            }
 
-        const evaluationData = {
-            objectives: evalScores,
-            percentage,
-            performanceLevel,
-        };
+            const evaluationData = {
+                objectives: evalScores,
+                percentage,
+                performanceLevel,
+            };
 
-        const result = await evaluateAthlete(selectedReservation.id, evaluationData);
+            const result = await evaluateAthlete(selectedReservation.id, evaluationData);
 
-        setIsSavingEval(false);
-
-        if (result.success) {
-            setEvalModalVisible(false);
-        } else {
+            if (result.success) {
+                setEvalModalVisible(false);
+            } else {
+                Alert.alert("Error", "No se pudo guardar la evaluación.");
+            }
+        } catch (error) {
+            console.error("Error guardando evaluación:", error);
             Alert.alert("Error", "No se pudo guardar la evaluación.");
+        } finally {
+            setIsSavingEval(false);
         }
+    };
+
+    const applyLocalCancelledDates = (datesToAdd = []) => {
+        setClassData((prev) => {
+            const previousCancelledDates = Array.isArray(prev?.cancelledDates)
+                ? prev.cancelledDates
+                : [];
+
+            const nextCancelledDates = Array.from(
+                new Set([...previousCancelledDates, ...datesToAdd])
+            ).sort();
+
+            return {
+                ...prev,
+                cancelledDates: nextCancelledDates,
+                lastCancelledDate: selectedDate,
+            };
+        });
+    };
+
+    const removeLocalCancelledDate = () => {
+        setClassData((prev) => ({
+            ...prev,
+            cancelledDates: Array.isArray(prev?.cancelledDates)
+                ? prev.cancelledDates.filter((currentDate) => currentDate !== selectedDate)
+                : [],
+            lastRestoredDate: selectedDate,
+        }));
     };
 
     const handleCancelSingleDate = () => {
         Alert.alert(
             "Cancelar sesión del día",
-            `Se cancelará esta clase solo para el día ${selectedDate}. Los usuarios con reserva verán el aviso de cancelación.`,
+            `Se cancelará esta clase solo para el día ${selectedDate}.`,
             [
                 { text: "Volver", style: "cancel" },
                 {
@@ -209,17 +288,7 @@ export default function ClassDetailScreen() {
                         setIsCancelling(false);
 
                         if (result.success) {
-                            setClassData((prev) => ({
-                                ...prev,
-                                cancelledDates: [
-                                    ...(Array.isArray(prev?.cancelledDates)
-                                        ? prev.cancelledDates
-                                        : []),
-                                    selectedDate,
-                                ],
-                                lastCancelledDate: selectedDate,
-                                lastCancellationReason: "Sesión cancelada por el coach",
-                            }));
+                            applyLocalCancelledDates(result.cancelledDates || [selectedDate]);
 
                             Alert.alert(
                                 "Sesión cancelada",
@@ -234,14 +303,14 @@ export default function ClassDetailScreen() {
         );
     };
 
-    const handleCancelSeries = () => {
+    const handleCancelWeek = () => {
         Alert.alert(
-            "Cancelar toda la clase",
-            "Esto cancelará toda la clase recurrente y sus futuras incidencias. Los usuarios con reserva verán el aviso de cancelación.",
+            "Cancelar semana",
+            `Se cancelarán las incidencias de esta clase correspondientes a la semana de ${selectedDate}. No se cancelará toda la recurrencia.`,
             [
                 { text: "Volver", style: "cancel" },
                 {
-                    text: "Cancelar toda",
+                    text: "Cancelar semana",
                     style: "destructive",
                     onPress: async () => {
                         setIsCancelling(true);
@@ -249,27 +318,22 @@ export default function ClassDetailScreen() {
                         const result = await cancelClass({
                             classId,
                             selectedDate,
-                            scope: "series",
+                            scope: "week",
                             cancelledBy: "coach",
-                            reason: "Clase cancelada por el coach",
+                            reason: "Semana cancelada por el coach",
                         });
 
                         setIsCancelling(false);
 
                         if (result.success) {
-                            setClassData((prev) => ({
-                                ...prev,
-                                status: "cancelled",
-                                active: false,
-                                cancellationReason: "Clase cancelada por el coach",
-                            }));
+                            applyLocalCancelledDates(result.cancelledDates || [selectedDate]);
 
                             Alert.alert(
-                                "Clase cancelada",
-                                "La clase completa quedó cancelada."
+                                "Semana cancelada",
+                                "Solo se cancelaron las incidencias de esta semana."
                             );
                         } else {
-                            Alert.alert("Error", result.message || "No se pudo cancelar la clase.");
+                            Alert.alert("Error", result.message || "No se pudo cancelar la semana.");
                         }
                     },
                 },
@@ -291,9 +355,99 @@ export default function ClassDetailScreen() {
                     onPress: handleCancelSingleDate,
                 },
                 {
-                    text: "Toda la recurrencia",
+                    text: "Toda esta semana",
                     style: "destructive",
-                    onPress: handleCancelSeries,
+                    onPress: handleCancelWeek,
+                },
+            ]
+        );
+    };
+
+    const handleRestoreSingleDate = async () => {
+        setIsRestoring(true);
+
+        try {
+            const result = await restoreCancelledClassDate({
+                classId,
+                selectedDate,
+                restoredBy: "coach",
+            });
+
+            if (result.success) {
+                removeLocalCancelledDate();
+
+                Alert.alert(
+                    "Clase reactivada",
+                    result.message || "La clase fue reactivada correctamente."
+                );
+            } else {
+                Alert.alert("Error", result.message || "No se pudo reactivar la clase.");
+            }
+        } catch (error) {
+            console.error("Error reactivando clase:", error);
+            Alert.alert("Error", "No se pudo reactivar la clase.");
+        } finally {
+            setIsRestoring(false);
+        }
+    };
+
+    const handleRestoreWeek = async () => {
+        setIsRestoring(true);
+
+        try {
+            const result = await restoreCancelledClassWeek({
+                classId,
+                selectedDate,
+                restoredBy: "coach",
+            });
+
+            if (result.success) {
+                setClassData((prev) => {
+                    const restoredDates = result.restoredDates || [];
+                    const previousCancelledDates = Array.isArray(prev?.cancelledDates)
+                        ? prev.cancelledDates
+                        : [];
+
+                    return {
+                        ...prev,
+                        cancelledDates: previousCancelledDates.filter(
+                            (currentDate) => !restoredDates.includes(currentDate)
+                        ),
+                        lastRestoredDate: selectedDate,
+                        lastRestoredDates: restoredDates,
+                    };
+                });
+
+                Alert.alert(
+                    "Semana reactivada",
+                    result.message || "La semana fue reactivada correctamente."
+                );
+            } else {
+                Alert.alert("Error", result.message || "No se pudo reactivar la semana.");
+            }
+        } catch (error) {
+            console.error("Error reactivando semana:", error);
+            Alert.alert("Error", "No se pudo reactivar la semana.");
+        } finally {
+            setIsRestoring(false);
+        }
+    };
+
+    const handleRestoreClassDate = () => {
+        if (!canRestoreSelectedDate) return;
+
+        Alert.alert(
+            "Reactivar clase",
+            "¿Qué deseas reactivar?",
+            [
+                { text: "Volver", style: "cancel" },
+                {
+                    text: `Solo ${selectedDate}`,
+                    onPress: handleRestoreSingleDate,
+                },
+                {
+                    text: "Toda esta semana",
+                    onPress: handleRestoreWeek,
                 },
             ]
         );
@@ -334,12 +488,6 @@ export default function ClassDetailScreen() {
         );
     };
 
-    const attendedCount =
-        reservations?.filter((reservation) => reservation?.status === "attended").length || 0;
-
-    const activeReservations =
-        reservations?.filter((reservation) => reservation?.status !== "cancelled") || [];
-
     return (
         <View className="flex-1 bg-impulse-dark pt-16 px-5">
             <TouchableOpacity
@@ -379,15 +527,28 @@ export default function ClassDetailScreen() {
                                 </Text>
                             </TouchableOpacity>
                         )}
+
+                        {canRestoreSelectedDate && (
+                            <TouchableOpacity
+                                disabled={isRestoring}
+                                onPress={handleRestoreClassDate}
+                                className="bg-green-500/10 px-3 py-2 rounded-full border border-green-500/30"
+                            >
+                                <Text className="text-green-500 text-[10px] font-black uppercase">
+                                    {isRestoring ? "Reactivando..." : "Reactivar"}
+                                </Text>
+                            </TouchableOpacity>
+                        )}
                     </View>
 
                     {isClassCancelled && (
                         <View className="bg-red-500/20 py-3 px-4 rounded-xl mb-4 border border-red-500/30">
                             <Text className="text-red-500 font-black text-xs text-center uppercase tracking-widest">
-                                Esta clase está cancelada
+                                Esta sesión está cancelada
                             </Text>
+
                             <Text className="text-red-300 text-xs text-center mt-1">
-                                No se puede pasar lista ni evaluar atletas.
+                                Puedes reactivar solo esta fecha o toda esta semana desde el botón superior.
                             </Text>
                         </View>
                     )}
@@ -419,12 +580,12 @@ export default function ClassDetailScreen() {
             </Text>
 
             <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 100 }}>
-                {reservations?.length === 0 && !isLoading ? (
+                {reservations.length === 0 && !isLoading ? (
                     <Text className="text-gray-500 text-center mt-4">
                         Nadie ha reservado aún.
                     </Text>
                 ) : (
-                    reservations?.map((item, index) => {
+                    reservations.map((item, index) => {
                         if (!item) return null;
 
                         const attended = item.status === "attended";
@@ -458,7 +619,9 @@ export default function ClassDetailScreen() {
 
                                     {reservationCancelled || isClassCancelled ? (
                                         <Text className="text-red-500 text-[10px] font-black uppercase tracking-[1px] mt-1">
-                                            Reservación cancelada
+                                            {reservationCancelled
+                                                ? "Reservación cancelada"
+                                                : "Clase cancelada"}
                                         </Text>
                                     ) : attended ? (
                                         evaluated ? (

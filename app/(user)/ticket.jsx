@@ -51,7 +51,7 @@ export default function TicketScreen() {
       </View>
       
       <Text className="text-gray-600 text-center mt-8 px-10 text-xs">
-        Presenta este código al coach al llegar al box para validar tu asistencia.
+        Presenta este código al coach al llegar a la clase para validar tu asistencia.
       </Text>
     </View>
   );

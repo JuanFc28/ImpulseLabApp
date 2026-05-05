@@ -22,16 +22,59 @@ const WEEK_DAY_VALUES = [
     "saturday",
 ];
 
+const WEEK_DAY_LABELS = {
+    sunday: "Domingo",
+    monday: "Lunes",
+    tuesday: "Martes",
+    wednesday: "Miércoles",
+    thursday: "Jueves",
+    friday: "Viernes",
+    saturday: "Sábado",
+};
+
 const toISODate = (date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
+
     return `${year}-${month}-${day}`;
 };
 
-const getTodayTimeValue = () => {
-    const now = new Date();
-    return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+const normalizeTime = (value) => {
+    if (!value || typeof value !== "string") return "00:00";
+
+    const trimmed = value.trim();
+
+    if (/^\d{1,2}:\d{2}$/.test(trimmed)) {
+        const [hours, minutes] = trimmed.split(":");
+        return `${String(Number(hours)).padStart(2, "0")}:${minutes}`;
+    }
+
+    if (/^\d{1,2}:\d{2}\s?(AM|PM)$/i.test(trimmed)) {
+        const match = trimmed.match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/i);
+
+        if (!match) return "00:00";
+
+        let hours = Number(match[1]);
+        const minutes = match[2];
+        const meridiem = match[3].toUpperCase();
+
+        if (meridiem === "PM" && hours < 12) hours += 12;
+        if (meridiem === "AM" && hours === 12) hours = 0;
+
+        return `${String(hours).padStart(2, "0")}:${minutes}`;
+    }
+
+    return "00:00";
+};
+
+const buildDateTime = (dateISO, timeValue = "00:00") => {
+    if (!dateISO) return null;
+
+    const [year, month, day] = dateISO.split("-").map(Number);
+    const [hours, minutes] = normalizeTime(timeValue).split(":").map(Number);
+
+    return new Date(year, month - 1, day, hours, minutes, 0, 0);
 };
 
 const addDays = (date, days) => {
@@ -43,6 +86,33 @@ const addDays = (date, days) => {
 const getWeekDayValue = (isoDate) => {
     const date = new Date(`${isoDate}T12:00:00`);
     return WEEK_DAY_VALUES[date.getDay()];
+};
+
+const getWeekRange = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const day = today.getDay();
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() + diffToMonday);
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    endOfWeek.setHours(23, 59, 59, 999);
+
+    return {
+        startOfWeek,
+        endOfWeek,
+        startISO: toISODate(startOfWeek),
+        endISO: toISODate(endOfWeek),
+    };
+};
+
+const getReservationDate = (reservation) => {
+    return reservation?.dateISO || reservation?.date || reservation?.classDate || "";
 };
 
 const classAppliesToDate = (classItem, selectedDateISO) => {
@@ -73,52 +143,115 @@ const isClassCancelledForDate = (classItem, selectedDateISO) => {
     );
 };
 
+const isClassSessionPast = (classItem, selectedDateISO) => {
+    const sessionDateTime = buildDateTime(selectedDateISO, classItem?.startTime || "00:00");
+
+    if (!sessionDateTime) return false;
+
+    return sessionDateTime.getTime() < new Date().getTime();
+};
+
 const getClassDisplayDate = (classItem) => {
-    return classItem.startDate || classItem.date || "Sin fecha";
+    return classItem.displayDate || classItem.startDate || classItem.date || "Sin fecha";
 };
 
-const getSafeSpots = (classItem) => {
-    const available = classItem.availableSpots ?? classItem.totalSpots ?? 0;
-    return Math.max(available, 0);
+const getReservedCountForDate = (reservations, classId, dateISO) => {
+    return reservations.filter((reservation) => {
+        const sameClass =
+            reservation.classID === classId ||
+            reservation.classId === classId;
+
+        const sameDate = getReservationDate(reservation) === dateISO;
+
+        const activeReservation =
+            reservation.status !== "cancelled" &&
+            reservation.userAcknowledgedCancellation !== true;
+
+        return sameClass && sameDate && activeReservation;
+    }).length;
 };
 
-const findNextClassOccurrence = (classes, todayISO) => {
-    const currentTime = getTodayTimeValue();
-    const todayDate = new Date(`${todayISO}T12:00:00`);
-    const candidates = [];
+const getCapacityInfo = (classItem, reservations) => {
+    const totalSpots = Number(classItem?.totalSpots || classItem?.capacity || 0);
+    const dateISO =
+        classItem?.displayDate ||
+        classItem?.dateISO ||
+        classItem?.date ||
+        classItem?.startDate;
 
-    for (let offset = 0; offset <= 90; offset++) {
-        const dateISO = toISODate(addDays(todayDate, offset));
+    const reservedCount = getReservedCountForDate(
+        reservations,
+        classItem.id,
+        dateISO
+    );
+
+    const availableSpots = Math.max(totalSpots - reservedCount, 0);
+
+    return {
+        totalSpots,
+        reservedCount,
+        availableSpots,
+        isFull: totalSpots > 0 && reservedCount >= totalSpots,
+    };
+};
+
+const expandClassOccurrences = (classes, startDate, endDate, includePast = true) => {
+    const occurrences = [];
+    const todayNow = new Date();
+
+    let cursor = new Date(startDate);
+    cursor.setHours(0, 0, 0, 0);
+
+    const limit = new Date(endDate);
+    limit.setHours(23, 59, 59, 999);
+
+    while (cursor <= limit) {
+        const dateISO = toISODate(cursor);
 
         classes.forEach((classItem) => {
-            if (classItem.status === "cancelled" || classItem.active === false) return;
             if (!classAppliesToDate(classItem, dateISO)) return;
-            if (isClassCancelledForDate(classItem, dateISO)) return;
 
-            const classTime = classItem.startTime || "00:00";
+            const cancelledForDate = isClassCancelledForDate(classItem, dateISO);
 
-            if (dateISO === todayISO && classTime < currentTime) return;
+            if (!includePast) {
+                const sessionDateTime = buildDateTime(dateISO, classItem.startTime || "00:00");
+                if (sessionDateTime && sessionDateTime.getTime() < todayNow.getTime()) return;
+            }
 
-            candidates.push({
+            occurrences.push({
                 ...classItem,
                 displayDate: dateISO,
+                date: dateISO,
+                dateISO,
+                classDate: dateISO,
+                dayValue: getWeekDayValue(dateISO),
+                isCancelledForDate: cancelledForDate,
             });
         });
 
-        if (candidates.length > 0) {
-            break;
-        }
+        cursor = addDays(cursor, 1);
     }
 
-    candidates.sort((a, b) => {
-        if (a.displayDate === b.displayDate) {
-            return String(a.startTime || "").localeCompare(String(b.startTime || ""));
-        }
+    return occurrences.sort((a, b) => {
+        const dateA = buildDateTime(a.displayDate, a.startTime || "00:00");
+        const dateB = buildDateTime(b.displayDate, b.startTime || "00:00");
 
-        return String(a.displayDate).localeCompare(String(b.displayDate));
+        return (dateA?.getTime() || 0) - (dateB?.getTime() || 0);
     });
+};
 
-    return candidates[0] || null;
+const findNextClassOccurrence = (classes, todayISO) => {
+    const todayDate = new Date(`${todayISO}T12:00:00`);
+    const searchEndDate = addDays(todayDate, 90);
+
+    const upcomingOccurrences = expandClassOccurrences(
+        classes.filter((item) => item.status !== "cancelled" && item.active !== false),
+        todayDate,
+        searchEndDate,
+        false
+    ).filter((item) => !isClassCancelledForDate(item, item.displayDate));
+
+    return upcomingOccurrences[0] || null;
 };
 
 export default function CoachHomeScreen() {
@@ -126,18 +259,21 @@ export default function CoachHomeScreen() {
     const router = useRouter();
 
     const [classes, setClasses] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [reservations, setReservations] = useState([]);
+    const [isLoadingClasses, setIsLoadingClasses] = useState(true);
+    const [isLoadingReservations, setIsLoadingReservations] = useState(true);
 
     const todayString = toISODate(new Date());
     const firstName = user?.displayName ? user.displayName.split(" ")[0] : "Coach";
+    const isLoading = isLoadingClasses || isLoadingReservations;
 
     useEffect(() => {
         if (!user?.uid) {
-            setIsLoading(false);
-            return;
+            setIsLoadingClasses(false);
+            return undefined;
         }
 
-        setIsLoading(true);
+        setIsLoadingClasses(true);
 
         const q = query(
             collection(db, "classes"),
@@ -164,41 +300,94 @@ export default function CoachHomeScreen() {
                 });
 
                 setClasses(loadedClasses);
-                setIsLoading(false);
+                setIsLoadingClasses(false);
             },
             (error) => {
                 console.error("Error en tiempo real al cargar clases del coach:", error);
-                setIsLoading(false);
+                setIsLoadingClasses(false);
             }
         );
 
         return () => unsubscribe();
     }, [user?.uid]);
 
-    const todayClasses = useMemo(() => {
-        const currentTime = getTodayTimeValue();
+    useEffect(() => {
+        if (!user?.uid) {
+            setIsLoadingReservations(false);
+            return undefined;
+        }
 
-        return classes
-            .filter((item) => classAppliesToDate(item, todayString))
-            .filter((item) => !isClassCancelledForDate(item, todayString))
-            .filter((item) => String(item.startTime || "00:00") >= currentTime);
-    }, [classes, todayString]);
+        setIsLoadingReservations(true);
+
+        const q = query(
+            collection(db, "reservations"),
+            where("coachId", "==", user.uid)
+        );
+
+        const unsubscribe = onSnapshot(
+            q,
+            (querySnapshot) => {
+                const loadedReservations = querySnapshot.docs.map((reservationDoc) => ({
+                    id: reservationDoc.id,
+                    ...reservationDoc.data(),
+                }));
+
+                setReservations(loadedReservations);
+                setIsLoadingReservations(false);
+            },
+            (error) => {
+                console.error("Error en tiempo real al cargar reservaciones del coach:", error);
+                setReservations([]);
+                setIsLoadingReservations(false);
+            }
+        );
+
+        return () => unsubscribe();
+    }, [user?.uid]);
 
     const activeClasses = useMemo(() => {
         return classes.filter((item) => item.status !== "cancelled" && item.active !== false);
     }, [classes]);
 
-    const cancelledClasses = useMemo(() => {
-        return classes.filter((item) => item.status === "cancelled" || item.active === false);
+    const weeklyClasses = useMemo(() => {
+        const { startOfWeek, endOfWeek } = getWeekRange();
+
+        return expandClassOccurrences(classes, startOfWeek, endOfWeek, true);
     }, [classes]);
 
-    const totalAttendanceCapacity = useMemo(() => {
-        return activeClasses.reduce((acc, item) => acc + (item.totalSpots || 0), 0);
-    }, [activeClasses]);
+    const cancelledClasses = useMemo(() => {
+        return weeklyClasses.filter((item) =>
+            isClassCancelledForDate(item, item.displayDate)
+        );
+    }, [weeklyClasses]);
+
+    const activeWeeklyClasses = useMemo(() => {
+        return weeklyClasses.filter(
+            (item) => !isClassCancelledForDate(item, item.displayDate)
+        );
+    }, [weeklyClasses]);
+
+    const todayClasses = useMemo(() => {
+        return activeWeeklyClasses.filter((item) => {
+            if (item.displayDate !== todayString) return false;
+            if (isClassSessionPast(item, todayString)) return false;
+
+            return true;
+        });
+    }, [activeWeeklyClasses, todayString]);
+
+    const totalWeeklyCapacity = useMemo(() => {
+        return activeWeeklyClasses.reduce(
+            (acc, item) => acc + Number(item.totalSpots || item.capacity || 0),
+            0
+        );
+    }, [activeWeeklyClasses]);
 
     const upcomingClass = useMemo(() => {
         return findNextClassOccurrence(activeClasses, todayString);
     }, [activeClasses, todayString]);
+
+    const { startISO, endISO } = useMemo(() => getWeekRange(), []);
 
     if (isLoading) {
         return (
@@ -261,14 +450,14 @@ export default function CoachHomeScreen() {
 
                     <View className="flex-1 bg-impulse-gray border border-white/5 rounded-3xl p-5 relative overflow-hidden">
                         <Text className="text-gray-400 text-[10px] font-bold tracking-widest mb-1">
-                            CUPO TOTAL
+                            CUPO SEMANAL
                         </Text>
 
                         <View className="flex-row items-baseline">
                             <Text className="text-white text-3xl font-black">
-                                {totalAttendanceCapacity}
+                                {totalWeeklyCapacity}
                             </Text>
-                            <Text className="text-impulse-cyan text-sm ml-1"> spots</Text>
+                            <Text className="text-impulse-cyan text-sm ml-1">spots</Text>
                         </View>
                     </View>
                 </View>
@@ -338,10 +527,16 @@ export default function CoachHomeScreen() {
                             {upcomingClass.displayDate}
                         </Text>
 
-                        <Text className="text-sm font-bold mb-6 text-black/70">
-                            Hora: {upcomingClass.startTime} • Lugares:{" "}
-                            {getSafeSpots(upcomingClass)}/{upcomingClass.totalSpots}
-                        </Text>
+                        {(() => {
+                            const capacity = getCapacityInfo(upcomingClass, reservations);
+
+                            return (
+                                <Text className="text-sm font-bold mb-6 text-black/70">
+                                    Hora: {upcomingClass.startTime} • Cupos:{" "}
+                                    {capacity.reservedCount}/{capacity.totalSpots}
+                                </Text>
+                            );
+                        })()}
                     </TouchableOpacity>
                 ) : (
                     <View className="bg-impulse-gray border border-white/5 rounded-[32px] p-6 mb-8">
@@ -350,52 +545,60 @@ export default function CoachHomeScreen() {
                         </Text>
 
                         <Text className="text-gray-400">
-                            No tienes clases próximas activas desde hoy.
+                            No tienes clases próximas activas desde este momento.
                         </Text>
                     </View>
                 )}
 
                 <View className="bg-[#111] border border-white/5 rounded-[32px] p-6 mb-8">
-                    <View className="flex-row justify-between items-center mb-6">
+                    <View className="flex-row justify-between items-center mb-2">
                         <View className="flex-row items-center">
                             <IconSymbol name="calendar" size={20} color="#FFF" />
                             <Text className="text-white text-lg font-black ml-3">
-                                Mis clases
+                                Mis clases de la semana
                             </Text>
                         </View>
 
                         <View className="bg-white/10 px-3 py-1 rounded-full">
                             <Text className="text-white text-xs font-bold">
-                                {classes.length}
+                                {weeklyClasses.length}
                             </Text>
                         </View>
                     </View>
 
-                    {classes.length === 0 ? (
+                    <Text className="text-gray-500 text-[11px] font-bold mb-5 ml-8">
+                        {startISO} al {endISO}
+                    </Text>
+
+                    {weeklyClasses.length === 0 ? (
                         <Text className="text-gray-400">
-                            No tienes clases asignadas todavía.
+                            No tienes clases asignadas para esta semana.
                         </Text>
                     ) : (
-                        classes.map((item, index) => {
-                            const displayDate = getClassDisplayDate(item);
-                            const isCancelled = isClassCancelledForDate(item, todayString);
-                            const safeSpots = getSafeSpots(item);
+                        weeklyClasses.map((item, index) => {
+                            const displayDate = item.displayDate || getClassDisplayDate(item);
+                            const isCancelled = isClassCancelledForDate(item, displayDate);
+                            const capacity = getCapacityInfo(item, reservations);
+                            const dayLabel = WEEK_DAY_LABELS[item.dayValue] || "";
+                            const isCancelledSpecificDate =
+                                Array.isArray(item.cancelledDates) &&
+                                item.cancelledDates.includes(displayDate);
 
                             return (
                                 <TouchableOpacity
-                                    key={item.id}
+                                    key={`${item.id}-${displayDate}-${index}`}
                                     activeOpacity={0.85}
                                     onPress={() =>
                                         router.push({
                                             pathname: "/(coach)/class-detail",
                                             params: {
                                                 classId: item.id,
-                                                date: todayString,
+                                                date: displayDate,
                                             },
                                         })
                                     }
                                     className={`flex-row justify-between items-center py-3 ${
-                                        index !== classes.length - 1
+                                        index !== weeklyClasses.length - 1
                                             ? "border-b border-white/5"
                                             : ""
                                     }`}
@@ -428,16 +631,20 @@ export default function CoachHomeScreen() {
                                                     : "text-gray-400"
                                             }`}
                                         >
-                                            Inicia {displayDate} • {item.startTime}
+                                            {dayLabel} • {displayDate} • {item.startTime || "--:--"}
                                         </Text>
 
-                                        {Array.isArray(item.cancelledDates) &&
-                                            item.cancelledDates.length > 0 &&
-                                            item.status !== "cancelled" && (
-                                                <Text className="text-red-400 text-[10px] font-bold mt-1">
-                                                    Fechas canceladas: {item.cancelledDates.join(", ")}
-                                                </Text>
-                                            )}
+                                        {isCancelledSpecificDate && (
+                                            <Text className="text-red-400 text-[10px] font-bold mt-1">
+                                                Fecha cancelada: {displayDate}
+                                            </Text>
+                                        )}
+
+                                        {!isCancelled && (
+                                            <Text className="text-gray-500 text-[10px] font-bold mt-1">
+                                                {capacity.availableSpots} lugares disponibles
+                                            </Text>
+                                        )}
                                     </View>
 
                                     <View className="flex-row items-center">
@@ -445,17 +652,19 @@ export default function CoachHomeScreen() {
                                             className={`px-3 py-2 rounded-full mr-2 ${
                                                 isCancelled
                                                     ? "bg-red-500/10 border border-red-500/20"
-                                                    : "bg-white/5"
+                                                    : capacity.isFull
+                                                        ? "bg-red-500/10 border border-red-500/20"
+                                                        : "bg-white/5"
                                             }`}
                                         >
                                             <Text
                                                 className={`text-xs font-bold ${
-                                                    isCancelled
+                                                    isCancelled || capacity.isFull
                                                         ? "text-red-400"
                                                         : "text-white"
                                                 }`}
                                             >
-                                                {safeSpots}/{item.totalSpots}
+                                                {capacity.reservedCount}/{capacity.totalSpots}
                                             </Text>
                                         </View>
 

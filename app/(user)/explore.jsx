@@ -12,15 +12,18 @@ import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "@/src/context/AuthContext";
 import { db } from "@/src/config/firebase";
-import { collection, getDocs } from "firebase/firestore";
+import {
+    collection,
+    getDocs,
+    onSnapshot,
+    query,
+    where,
+} from "firebase/firestore";
 import {
     bookClass,
     cancelClassReservation,
     reserveCoachMonthlySchedule,
     cancelCoachReservation,
-    getUserReservations,
-    getUserCoachReservations,
-    getUserGymAttendance,
     acknowledgeClassCancellation,
 } from "@/src/services/gymService";
 
@@ -48,8 +51,11 @@ const toISODate = (date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
+
     return `${year}-${month}-${day}`;
 };
+
+const getTodayISO = () => toISODate(new Date());
 
 const getWeekDayValue = (isoDate) => {
     const date = new Date(`${isoDate}T12:00:00`);
@@ -64,6 +70,70 @@ const getAttendanceDate = (item) => {
     return item?.dateISO || item?.date || item?.classDate || "";
 };
 
+const normalizeTime = (value) => {
+    if (!value || typeof value !== "string") return "00:00";
+
+    const trimmed = value.trim();
+
+    if (/^\d{1,2}:\d{2}$/.test(trimmed)) {
+        const [hours, minutes] = trimmed.split(":");
+        return `${String(Number(hours)).padStart(2, "0")}:${minutes}`;
+    }
+
+    if (/^\d{1,2}:\d{2}\s?(AM|PM)$/i.test(trimmed)) {
+        const match = trimmed.match(/^(\d{1,2}):(\d{2})\s?(AM|PM)$/i);
+
+        if (!match) return "00:00";
+
+        let hours = Number(match[1]);
+        const minutes = match[2];
+        const meridiem = match[3].toUpperCase();
+
+        if (meridiem === "PM" && hours < 12) hours += 12;
+        if (meridiem === "AM" && hours === 12) hours = 0;
+
+        return `${String(hours).padStart(2, "0")}:${minutes}`;
+    }
+
+    return "00:00";
+};
+
+const buildDateTime = (dateISO, timeValue = "00:00") => {
+    if (!dateISO) return null;
+
+    const [year, month, day] = dateISO.split("-").map(Number);
+    const [hours, minutes] = normalizeTime(timeValue).split(":").map(Number);
+
+    return new Date(year, month - 1, day, hours, minutes, 0, 0);
+};
+
+const isDateBeforeToday = (dateISO) => {
+    if (!dateISO) return false;
+
+    const today = buildDateTime(getTodayISO(), "00:00");
+    const selected = buildDateTime(dateISO, "00:00");
+
+    if (!today || !selected) return false;
+
+    return selected.getTime() < today.getTime();
+};
+
+const isClassSessionPast = (classItem, selectedDateISO) => {
+    if (!classItem || !selectedDateISO) return false;
+
+    const timeValue =
+        classItem.startTime ||
+        classItem.classTime ||
+        classItem.time ||
+        "00:00";
+
+    const sessionDateTime = buildDateTime(selectedDateISO, timeValue);
+
+    if (!sessionDateTime) return false;
+
+    return sessionDateTime.getTime() < new Date().getTime();
+};
+
 const isClassCancelledForDate = (classItem, selectedDateISO) => {
     if (!classItem) return false;
 
@@ -75,8 +145,12 @@ const isClassCancelledForDate = (classItem, selectedDateISO) => {
     );
 };
 
-const classAppliesToDate = (classItem, selectedDateISO) => {
+const classAppliesToDate = (classItem, selectedDateISO, options = {}) => {
+    const { allowPast = true } = options;
+
     if (!classItem || !selectedDateISO) return false;
+
+    if (!allowPast && isDateBeforeToday(selectedDateISO)) return false;
 
     const startDate = classItem.startDate || classItem.date || "";
     const endDate = classItem.endDate || "";
@@ -134,14 +208,153 @@ export default function ExploreScreen() {
     const [isLoadingCalendar, setIsLoadingCalendar] = useState(true);
 
     useEffect(() => {
-        setSelectedDateISO(toISODate(new Date()));
+        setSelectedDateISO(getTodayISO());
     }, []);
 
-    const getAvailableSpotsForDate = useCallback(
-        (classItem, dateISO) => {
-            const totalSpots = classItem?.totalSpots || 0;
+    useEffect(() => {
+        setIsLoadingCalendar(true);
 
-            const reservationsForDate = allReservations.filter((reservation) => {
+        const qRef = query(collection(db, "classes"));
+
+        const unsubscribe = onSnapshot(
+            qRef,
+            (snapshot) => {
+                const loadedClasses = snapshot.docs.map((docItem) => ({
+                    id: docItem.id,
+                    ...docItem.data(),
+                }));
+
+                loadedClasses.sort((a, b) =>
+                    String(a.startTime || "").localeCompare(String(b.startTime || ""))
+                );
+
+                setAllClasses(loadedClasses);
+                setIsLoadingCalendar(false);
+            },
+            (error) => {
+                console.log("Error escuchando clases:", error?.message || error);
+                setAllClasses([]);
+                setIsLoadingCalendar(false);
+            }
+        );
+
+        return () => unsubscribe();
+    }, []);
+
+    useEffect(() => {
+        if (!user?.uid) {
+            setAllReservations([]);
+            return undefined;
+        }
+
+        setIsLoadingCalendar(true);
+
+        const qRef = query(
+            collection(db, "reservations"),
+            where("userId", "==", user.uid)
+        );
+
+        const unsubscribe = onSnapshot(
+            qRef,
+            (snapshot) => {
+                const loadedReservations = snapshot.docs.map((docItem) => ({
+                    id: docItem.id,
+                    ...docItem.data(),
+                }));
+
+                setAllReservations(loadedReservations);
+                setIsLoadingCalendar(false);
+            },
+            (error) => {
+                console.log("Error escuchando reservaciones del usuario:", error?.message || error);
+                setAllReservations([]);
+                setIsLoadingCalendar(false);
+            }
+        );
+
+        return () => unsubscribe();
+    }, [user?.uid]);
+
+    useEffect(() => {
+        if (!user?.uid) {
+            setCoachReservations([]);
+            return undefined;
+        }
+
+        const qRef = query(
+            collection(db, "coach_reservations"),
+            where("userId", "==", user.uid)
+        );
+
+        const unsubscribe = onSnapshot(
+            qRef,
+            (snapshot) => {
+                const month = String(currentMonth.getMonth() + 1).padStart(2, "0");
+                const year = currentMonth.getFullYear();
+
+                const loadedReservations = snapshot.docs
+                    .map((docItem) => ({
+                        id: docItem.id,
+                        ...docItem.data(),
+                    }))
+                    .filter((item) => {
+                        return String(item.month).padStart(2, "0") === month && Number(item.year) === year;
+                    });
+
+                setCoachReservations(loadedReservations);
+            },
+            (error) => {
+                console.log("Error escuchando reservaciones de coach:", error?.message || error);
+                setCoachReservations([]);
+            }
+        );
+
+        return () => unsubscribe();
+    }, [user?.uid, currentMonth]);
+
+    useEffect(() => {
+        if (!user?.uid) {
+            setGymAttendance([]);
+            return undefined;
+        }
+
+        const qRef = query(
+            collection(db, "gym_attendance"),
+            where("userId", "==", user.uid)
+        );
+
+        const unsubscribe = onSnapshot(
+            qRef,
+            (snapshot) => {
+                const loadedAttendance = snapshot.docs.map((docItem) => ({
+                    id: docItem.id,
+                    ...docItem.data(),
+                }));
+
+                setGymAttendance(loadedAttendance);
+            },
+            (error) => {
+                console.log("Error escuchando asistencia:", error?.message || error);
+                setGymAttendance([]);
+            }
+        );
+
+        return () => unsubscribe();
+    }, [user?.uid]);
+
+    const fetchCalendarData = useCallback(async () => {
+        setIsLoadingCalendar(false);
+    }, []);
+
+    useFocusEffect(
+        useCallback(() => {
+            fetchCalendarData();
+        }, [fetchCalendarData])
+    );
+
+    const getReservationsForClassDate = useCallback(
+        (classItem, dateISO) => {
+            return allReservations.filter((reservation) => {
                 const sameClass =
                     reservation.classID === classItem.id ||
                     reservation.classId === classItem.id;
@@ -154,10 +367,25 @@ export default function ExploreScreen() {
 
                 return sameClass && sameDate && activeReservation;
             });
-
-            return Math.max(totalSpots - reservationsForDate.length, 0);
         },
         [allReservations]
+    );
+
+    const getCapacityInfoForDate = useCallback(
+        (classItem, dateISO) => {
+            const totalSpots = Number(classItem?.totalSpots || classItem?.capacity || 0);
+            const reservationsForDate = getReservationsForClassDate(classItem, dateISO);
+            const reservedCount = reservationsForDate.length;
+            const availableSpots = Math.max(totalSpots - reservedCount, 0);
+
+            return {
+                totalSpots,
+                reservedCount,
+                availableSpots,
+                isFull: totalSpots > 0 && reservedCount >= totalSpots,
+            };
+        },
+        [getReservationsForClassDate]
     );
 
     const fetchAllClasses = useCallback(async () => {
@@ -176,46 +404,10 @@ export default function ExploreScreen() {
         return loadedClasses;
     }, []);
 
-    const fetchCalendarData = useCallback(async () => {
-        if (!user?.uid) return;
-
-        setIsLoadingCalendar(true);
-
-        try {
-            const userRes = await getUserReservations(user.uid);
-            setAllReservations(userRes || []);
-
-            const month = String(currentMonth.getMonth() + 1).padStart(2, "0");
-            const year = currentMonth.getFullYear();
-
-            const coachRes = await getUserCoachReservations(user.uid, month, year);
-            setCoachReservations(coachRes || []);
-
-            const attendance = await getUserGymAttendance(user.uid);
-            setGymAttendance(attendance || []);
-
-            await fetchAllClasses();
-        } catch (error) {
-            console.log("Error cargando calendario:", error?.message || error);
-        } finally {
-            setIsLoadingCalendar(false);
-        }
-    }, [user?.uid, currentMonth, fetchAllClasses]);
-
-    useEffect(() => {
-        fetchCalendarData();
-    }, [fetchCalendarData]);
-
-    useFocusEffect(
-        useCallback(() => {
-            fetchCalendarData();
-        }, [fetchCalendarData])
-    );
-
     useEffect(() => {
         if (!selectedDateISO || !user?.uid) return;
 
-        const fetchClassesForSelectedDate = async () => {
+        const loadClassesForSelectedDate = async () => {
             setIsLoadingClasses(true);
 
             try {
@@ -223,12 +415,12 @@ export default function ExploreScreen() {
                     allClasses.length > 0 ? allClasses : await fetchAllClasses();
 
                 const activeVisibleClasses = sourceClasses
-                    .filter((classItem) => classAppliesToDate(classItem, selectedDateISO))
+                    .filter((classItem) =>
+                        classAppliesToDate(classItem, selectedDateISO, { allowPast: false })
+                    )
+                    .filter((classItem) => !isClassSessionPast(classItem, selectedDateISO))
                     .map((classItem) => {
-                        const availableSpotsForDate = getAvailableSpotsForDate(
-                            classItem,
-                            selectedDateISO
-                        );
+                        const capacityInfo = getCapacityInfoForDate(classItem, selectedDateISO);
 
                         return {
                             ...classItem,
@@ -236,7 +428,10 @@ export default function ExploreScreen() {
                             classDate: selectedDateISO,
                             dateISO: selectedDateISO,
                             viewType: "available",
-                            availableSpotsForDate,
+                            availableSpotsForDate: capacityInfo.availableSpots,
+                            reservedCountForDate: capacityInfo.reservedCount,
+                            totalSpotsForDate: capacityInfo.totalSpots,
+                            isFullForDate: capacityInfo.isFull,
                         };
                     });
 
@@ -272,12 +467,16 @@ export default function ExploreScreen() {
                             viewType: "cancelledReservation",
                             reservationInfo: reservation,
                             availableSpotsForDate: 0,
+                            reservedCountForDate: 0,
+                            totalSpotsForDate: Number(relatedClass?.totalSpots || relatedClass?.capacity || 0),
+                            isFullForDate: false,
                         };
                     });
 
                 const mergedClasses = [...activeVisibleClasses, ...cancelledReservationsForDate]
                     .filter((item, index, array) => {
                         const key = `${item.id}-${item.dateISO}-${item.viewType}`;
+
                         return (
                             array.findIndex(
                                 (candidate) =>
@@ -298,14 +497,14 @@ export default function ExploreScreen() {
             }
         };
 
-        fetchClassesForSelectedDate();
+        loadClassesForSelectedDate();
     }, [
         selectedDateISO,
         user?.uid,
         allClasses,
         allReservations,
         fetchAllClasses,
-        getAvailableSpotsForDate,
+        getCapacityInfoForDate,
     ]);
 
     useEffect(() => {
@@ -420,7 +619,7 @@ export default function ExploreScreen() {
             );
 
             const hasAvailableClassMarker = allClasses.some((classItem) =>
-                classAppliesToDate(classItem, isoDate)
+                classAppliesToDate(classItem, isoDate, { allowPast: true })
             );
 
             const hasClassMarker =
@@ -483,11 +682,30 @@ export default function ExploreScreen() {
         return allReservations.find((item) => {
             const sameClass = item.classID === cls.id || item.classId === cls.id;
             const sameDate = getReservationDate(item) === selectedDateISO;
-            return sameClass && sameDate;
+            const isVisibleReservation =
+                item.status !== "cancelled" || item.userAcknowledgedCancellation !== true;
+
+            return sameClass && sameDate && isVisibleReservation;
         });
     };
 
     const handleReserveClass = (cls) => {
+        if (isDateBeforeToday(selectedDateISO)) {
+            Alert.alert(
+                "Fecha no disponible",
+                "No puedes reservar clases de días pasados."
+            );
+            return;
+        }
+
+        if (isClassSessionPast(cls, selectedDateISO)) {
+            Alert.alert(
+                "Clase no disponible",
+                "Esta clase ya pasó y no puede reservarse."
+            );
+            return;
+        }
+
         const isCancelled = isClassCancelledForDate(cls, selectedDateISO);
 
         if (isCancelled) {
@@ -495,7 +713,8 @@ export default function ExploreScreen() {
             return;
         }
 
-        const spotsForDate = cls.availableSpotsForDate ?? getAvailableSpotsForDate(cls, selectedDateISO);
+        const capacityInfo = getCapacityInfoForDate(cls, selectedDateISO);
+        const spotsForDate = cls.availableSpotsForDate ?? capacityInfo.availableSpots;
 
         if (spotsForDate <= 0) {
             Alert.alert("Clase llena", "No hay lugares disponibles para esta fecha.");
@@ -524,8 +743,6 @@ export default function ExploreScreen() {
                                 userName
                             );
 
-                            await fetchCalendarData();
-
                             Alert.alert("¡Listo!", "Tu lugar está asegurado para esta fecha.");
                         } catch (error) {
                             console.log("Error reservando clase:", error?.message || error);
@@ -548,6 +765,11 @@ export default function ExploreScreen() {
             return;
         }
 
+        if (reservation.status === "attended") {
+            Alert.alert("Clase realizada", "No puedes cancelar una clase a la que ya asististe.");
+            return;
+        }
+
         Alert.alert(
             "Cancelar reserva",
             `¿Seguro que quieres cancelar tu reserva de ${cls.name}?`,
@@ -558,8 +780,7 @@ export default function ExploreScreen() {
                     style: "destructive",
                     onPress: async () => {
                         try {
-                            await cancelClassReservation(reservation.id, cls.id);
-                            await fetchCalendarData();
+                            await cancelClassReservation(reservation.id);
 
                             Alert.alert("Cancelada", "Reserva cancelada exitosamente.");
                         } catch (error) {
@@ -586,7 +807,6 @@ export default function ExploreScreen() {
                         const result = await acknowledgeClassCancellation(reservation.id);
 
                         if (result.success) {
-                            await fetchCalendarData();
                             setClassesForDate((prev) =>
                                 prev.filter(
                                     (item) =>
@@ -626,8 +846,6 @@ export default function ExploreScreen() {
                                 schedule.startTime || schedule.time
                             );
 
-                            await fetchCalendarData();
-
                             Alert.alert("¡Listo!", "Coach reservado para el mes.");
                         } catch (error) {
                             console.log("Error reservando coach:", error?.message || error);
@@ -662,7 +880,6 @@ export default function ExploreScreen() {
                     onPress: async () => {
                         try {
                             await cancelCoachReservation(reservation.id);
-                            await fetchCalendarData();
 
                             Alert.alert("Cancelado", "Entrenamiento mensual cancelado.");
                         } catch (error) {
@@ -864,7 +1081,7 @@ export default function ExploreScreen() {
                             <View className="py-10 items-center justify-center bg-[#1C1C1E] rounded-3xl mx-1 border border-white/5">
                                 <IconSymbol name="calendar.badge.exclamationmark" size={48} color="#444" />
                                 <Text className="text-gray-500 font-bold mt-4">
-                                    No hay clases programadas para este día.
+                                    No hay clases disponibles para reservar en este día.
                                 </Text>
                             </View>
                         ) : (
@@ -877,7 +1094,10 @@ export default function ExploreScreen() {
                                     reservationInfo?.status === "cancelled" ||
                                     isClassCancelledForDate(cls, selectedDateISO);
 
-                                const spots = cls.availableSpotsForDate ?? getAvailableSpotsForDate(cls, selectedDateISO);
+                                const capacityInfo = getCapacityInfoForDate(cls, selectedDateISO);
+                                const totalSpots = cls.totalSpotsForDate ?? capacityInfo.totalSpots;
+                                const reservedCount = cls.reservedCountForDate ?? capacityInfo.reservedCount;
+                                const spots = cls.availableSpotsForDate ?? capacityInfo.availableSpots;
                                 const isFull = spots <= 0 && !isReserved;
 
                                 return (
@@ -932,9 +1152,20 @@ export default function ExploreScreen() {
                                         </View>
 
                                         {!isCancelled && (
-                                            <Text className="text-gray-500 text-xs mb-4">
-                                                {getRecurrenceText(cls)}
-                                            </Text>
+                                            <View className="mb-4">
+                                                <Text className="text-gray-500 text-xs mb-2">
+                                                    {getRecurrenceText(cls)}
+                                                </Text>
+
+                                                <View className="bg-black/25 rounded-2xl p-3 border border-white/5">
+                                                    <Text className="text-white font-black text-xs">
+                                                        {reservedCount}/{totalSpots} reservados
+                                                    </Text>
+                                                    <Text className={`${isFull ? "text-red-400" : "text-gray-400"} text-xs font-bold mt-1`}>
+                                                        {spots} lugares disponibles
+                                                    </Text>
+                                                </View>
+                                            </View>
                                         )}
 
                                         <View className={`flex-row items-center justify-between mt-2 pt-4 border-t ${isCancelled ? "border-red-500/20" : "border-white/5"}`}>
@@ -960,7 +1191,7 @@ export default function ExploreScreen() {
                                             ) : (
                                                 <>
                                                     <Text className={`text-xs font-black ${isFull ? "text-red-500" : "text-gray-400"}`}>
-                                                        {isFull ? "SIN CUPO" : `${spots} LUGARES`}
+                                                        {isFull ? "SIN CUPO" : `${reservedCount}/${totalSpots}`}
                                                     </Text>
 
                                                     {isReserved ? (
