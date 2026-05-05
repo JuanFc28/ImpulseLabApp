@@ -101,7 +101,6 @@ export default function UserProfileScreen() {
         <View className="items-center mb-10">
           <View className="w-24 h-24 rounded-full border-4 border-[#00E5FF] p-1 mb-4 shadow-xl shadow-[#00E5FF]/20">
             <View className="flex-1 rounded-full bg-white/10 items-center justify-center overflow-hidden">
-              {/* CORRECCIÓN: person.crop.circle.fill -> person-circle */}
               <Ionicons name="person-circle" size={60} color="#00E5FF" />
             </View>
           </View>
@@ -120,7 +119,6 @@ export default function UserProfileScreen() {
 
         <View className="flex-row justify-between mb-8 gap-x-3">
           <View className="flex-1 bg-impulse-gray rounded-[24px] p-4 items-center border border-white/5">
-            {/* CORRECCIÓN: flame.fill -> flame */}
             <Ionicons name="flame" size={24} color="#00E5FF" />
             <Text className="text-white text-2xl font-black mt-2">
               {metrics.streak}
@@ -131,7 +129,6 @@ export default function UserProfileScreen() {
           </View>
 
           <View className="flex-1 bg-impulse-gray rounded-[24px] p-4 items-center border border-white/5">
-            {/* CORRECCIÓN: checkmark.circle.fill -> checkmark-circle */}
             <Ionicons name="checkmark-circle" size={24} color="#00E5FF" />
             <Text className="text-white text-2xl font-black mt-2">
               {metrics.routinesCompleted}
@@ -154,7 +151,6 @@ export default function UserProfileScreen() {
 
         <View className="bg-impulse-gray rounded-[32px] p-2 border border-white/5 mb-8">
           <View className="p-4 flex-row items-center border-b border-white/5">
-            {/* CORRECCIÓN: envelope.fill -> mail */}
             <Ionicons name="mail" size={18} color="#666" />
             <View className="ml-4">
               <Text
@@ -170,7 +166,6 @@ export default function UserProfileScreen() {
           </View>
 
           <View className="p-4 flex-row items-center">
-            {/* CORRECCIÓN: shield.fill -> shield-checkmark */}
             <Ionicons name="shield-checkmark" size={18} color="#666" />
             <View className="ml-4">
               <Text

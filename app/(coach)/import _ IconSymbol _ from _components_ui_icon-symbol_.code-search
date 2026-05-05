@@ -1,0 +1,72 @@
+# Query: import { IconSymbol } from "@/components/ui/icon-symbol";
+
+23 results - 23 files
+
+app\(admin)\_layout.jsx:
+  4: import { Ionicons } from '@expo/vector-icons';
+
+app\(admin)\index.jsx:
+  4: import { Ionicons } from '@expo/vector-icons';
+
+app\(admin)\profile.jsx:
+  4: import { Ionicons } from '@expo/vector-icons';
+
+app\(admin)\qr.jsx:
+  4: import { Ionicons } from '@expo/vector-icons';
+
+app\(admin)\schedule.jsx:
+  16: import { Ionicons } from '@expo/vector-icons';
+
+app\(admin)\users.jsx:
+  12: import { Ionicons } from '@expo/vector-icons';
+
+app\(auth)\login.jsx:
+  3: import { Ionicons } from '@expo/vector-icons';
+
+app\(coach)\_layout.jsx:
+  6: import { Ionicons } from '@expo/vector-icons';
+
+app\(coach)\athletes.jsx:
+  4: import { Ionicons } from '@expo/vector-icons';
+
+app\(coach)\class-detail.jsx:
+  4: import { Ionicons } from '@expo/vector-icons';
+
+app\(coach)\create-routine.jsx:
+  15: import { Ionicons } from '@expo/vector-icons';
+
+app\(coach)\index.jsx:
+  3: import { Ionicons } from '@expo/vector-icons';
+
+app\(coach)\profile.jsx:
+  4: import { Ionicons } from '@expo/vector-icons';
+
+app\(coach)\routines.jsx:
+  11: import { Ionicons } from '@expo/vector-icons';
+
+app\(coach)\scanner.jsx:
+  6: import { Ionicons } from '@expo/vector-icons';
+
+app\(user)\_layout.jsx:
+  5: import { Ionicons } from '@expo/vector-icons';
+
+app\(user)\explore.jsx:
+  10: import { Ionicons } from '@expo/vector-icons';
+
+app\(user)\index.jsx:
+  4: import { Ionicons } from '@expo/vector-icons';
+
+app\(user)\profile.jsx:
+  4: import { Ionicons } from '@expo/vector-icons';
+
+app\(user)\routine-detail.jsx:
+  11: import { Ionicons } from '@expo/vector-icons';
+
+app\(user)\routines.jsx:
+  12: import { Ionicons } from '@expo/vector-icons';
+
+app\(user)\scan-attendance.jsx:
+  3: import { Ionicons } from '@expo/vector-icons';
+
+app\(user)\ticket.jsx:
+  5: import { Ionicons } from '@expo/vector-icons';

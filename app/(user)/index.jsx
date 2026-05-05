@@ -115,7 +115,6 @@ export default function UserDashboard() {
         {/* HISTORIAL DE CLASES */}
         <View className="px-5">
           <View className="flex-row items-center mb-6">
-            {/* CORRECCIÓN: chart.bar.fill -> stats-chart */}
             <Ionicons name="stats-chart" size={20} color="#00E5FF" />
             <Text className="text-white text-xl font-black ml-2">
               Tu Historial de Desempeño
@@ -127,7 +126,6 @@ export default function UserDashboard() {
           ) : evaluations.length === 0 ? (
             <View className="bg-impulse-gray p-8 rounded-[32px] border border-white/5 items-center mt-2">
               <View className="w-16 h-16 bg-white/5 rounded-full items-center justify-center mb-4">
-                {/* CORRECCIÓN: medal.fill -> medal */}
                 <Ionicons name="medal" size={30} color="#666" />
               </View>
               <Text className="text-white text-lg font-black text-center">

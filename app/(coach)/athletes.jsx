@@ -91,7 +91,6 @@ export default function CoachAthletesScreen() {
                     borderColor: athleteStyle.border,
                   }}
                 >
-                  {/* CORRECCIÓN: person.fill -> person */}
                   <Ionicons
                     name="person"
                     size={20}

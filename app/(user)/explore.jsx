@@ -12,7 +12,6 @@ import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { useAuth } from "@/src/context/AuthContext";
 import { db } from "@/src/config/firebase";
-<<<<<<< HEAD
 import {
   collection,
   query,
@@ -28,109 +27,7 @@ import {
   getUserReservations,
   getUserCoachReservations,
   getUserGymAttendance,
-=======
-import { collection, getDocs } from "firebase/firestore";
-import {
-    bookClass,
-    cancelClassReservation,
-    reserveCoachMonthlySchedule,
-    cancelCoachReservation,
-    getUserReservations,
-    getUserCoachReservations,
-    getUserGymAttendance,
-    acknowledgeClassCancellation,
->>>>>>> e3da7e70f0a31d403b96169003fd4eff8397a949
 } from "@/src/services/gymService";
-
-const WEEK_DAY_VALUES = [
-    "sunday",
-    "monday",
-    "tuesday",
-    "wednesday",
-    "thursday",
-    "friday",
-    "saturday",
-];
-
-const WEEK_DAYS_LABELS = {
-    sunday: "Domingo",
-    monday: "Lunes",
-    tuesday: "Martes",
-    wednesday: "Miércoles",
-    thursday: "Jueves",
-    friday: "Viernes",
-    saturday: "Sábado",
-};
-
-const toISODate = (date) => {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-};
-
-const getWeekDayValue = (isoDate) => {
-    const date = new Date(`${isoDate}T12:00:00`);
-    return WEEK_DAY_VALUES[date.getDay()];
-};
-
-const getReservationDate = (item) => {
-    return item?.dateISO || item?.date || item?.classDate || "";
-};
-
-const getAttendanceDate = (item) => {
-    return item?.dateISO || item?.date || item?.classDate || "";
-};
-
-const isClassCancelledForDate = (classItem, selectedDateISO) => {
-    if (!classItem) return false;
-
-    return (
-        classItem.status === "cancelled" ||
-        classItem.active === false ||
-        (Array.isArray(classItem.cancelledDates) &&
-            classItem.cancelledDates.includes(selectedDateISO))
-    );
-};
-
-const classAppliesToDate = (classItem, selectedDateISO) => {
-    if (!classItem || !selectedDateISO) return false;
-
-    const startDate = classItem.startDate || classItem.date || "";
-    const endDate = classItem.endDate || "";
-
-    if (!startDate) return false;
-    if (selectedDateISO < startDate) return false;
-    if (endDate && selectedDateISO > endDate) return false;
-
-    if (classItem.status === "cancelled" || classItem.active === false) return false;
-
-    if (
-        Array.isArray(classItem.cancelledDates) &&
-        classItem.cancelledDates.includes(selectedDateISO)
-    ) {
-        return false;
-    }
-
-    if (Array.isArray(classItem.recurrenceDays) && classItem.recurrenceDays.length > 0) {
-        return classItem.recurrenceDays.includes(getWeekDayValue(selectedDateISO));
-    }
-
-    return classItem.date === selectedDateISO;
-};
-
-const getRecurrenceText = (classItem) => {
-    if (!Array.isArray(classItem?.recurrenceDays) || classItem.recurrenceDays.length === 0) {
-        return "Esta clase solo aplica para la fecha seleccionada.";
-    }
-
-    const days = classItem.recurrenceDays
-        .map((day) => WEEK_DAYS_LABELS[day])
-        .filter(Boolean)
-        .join(", ");
-
-    return `Disponible también: ${days}.`;
-};
 
 export default function ExploreScreen() {
   const router = useRouter();
@@ -140,26 +37,16 @@ export default function ExploreScreen() {
   const [selectedDateISO, setSelectedDateISO] = useState("");
   const [activeTab, setActiveTab] = useState("classes");
 
-<<<<<<< HEAD
   const [allReservations, setAllReservations] = useState([]);
   const [coachReservations, setCoachReservations] = useState([]);
   const [coachSchedules, setCoachSchedules] = useState([]);
   const [classesForDate, setClassesForDate] = useState([]);
   const [gymAttendance, setGymAttendance] = useState([]);
-=======
-    const [allClasses, setAllClasses] = useState([]);
-    const [allReservations, setAllReservations] = useState([]);
-    const [coachReservations, setCoachReservations] = useState([]);
-    const [coachSchedules, setCoachSchedules] = useState([]);
-    const [classesForDate, setClassesForDate] = useState([]);
-    const [gymAttendance, setGymAttendance] = useState([]);
->>>>>>> e3da7e70f0a31d403b96169003fd4eff8397a949
 
   const [isLoadingClasses, setIsLoadingClasses] = useState(false);
   const [isLoadingCoaches, setIsLoadingCoaches] = useState(false);
   const [isLoadingCalendar, setIsLoadingCalendar] = useState(true);
 
-<<<<<<< HEAD
   useEffect(() => {
     const today = new Date();
     const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(
@@ -169,50 +56,6 @@ export default function ExploreScreen() {
 
     setSelectedDateISO(iso);
   }, []);
-=======
-    useEffect(() => {
-        setSelectedDateISO(toISODate(new Date()));
-    }, []);
-
-    const getAvailableSpotsForDate = useCallback(
-        (classItem, dateISO) => {
-            const totalSpots = classItem?.totalSpots || 0;
-
-            const reservationsForDate = allReservations.filter((reservation) => {
-                const sameClass =
-                    reservation.classID === classItem.id ||
-                    reservation.classId === classItem.id;
-
-                const sameDate = getReservationDate(reservation) === dateISO;
-
-                const activeReservation =
-                    reservation.status !== "cancelled" &&
-                    reservation.userAcknowledgedCancellation !== true;
-
-                return sameClass && sameDate && activeReservation;
-            });
-
-            return Math.max(totalSpots - reservationsForDate.length, 0);
-        },
-        [allReservations]
-    );
-
-    const fetchAllClasses = useCallback(async () => {
-        const classesSnap = await getDocs(collection(db, "classes"));
-
-        const loadedClasses = classesSnap.docs.map((docItem) => ({
-            id: docItem.id,
-            ...docItem.data(),
-        }));
-
-        loadedClasses.sort((a, b) =>
-            String(a.startTime || "").localeCompare(String(b.startTime || ""))
-        );
-
-        setAllClasses(loadedClasses);
-        return loadedClasses;
-    }, []);
->>>>>>> e3da7e70f0a31d403b96169003fd4eff8397a949
 
   const fetchCalendarData = useCallback(async () => {
     if (!user?.uid) return;
@@ -229,7 +72,6 @@ export default function ExploreScreen() {
       const coachRes = await getUserCoachReservations(user.uid, month, year);
       setCoachReservations(coachRes || []);
 
-<<<<<<< HEAD
       const attendance = await getUserGymAttendance(user.uid);
       setGymAttendance(attendance || []);
     } catch (error) {
@@ -238,18 +80,6 @@ export default function ExploreScreen() {
       setIsLoadingCalendar(false);
     }
   }, [user?.uid, currentMonth]);
-=======
-            const attendance = await getUserGymAttendance(user.uid);
-            setGymAttendance(attendance || []);
-
-            await fetchAllClasses();
-        } catch (error) {
-            console.log("Error cargando calendario:", error?.message || error);
-        } finally {
-            setIsLoadingCalendar(false);
-        }
-    }, [user?.uid, currentMonth, fetchAllClasses]);
->>>>>>> e3da7e70f0a31d403b96169003fd4eff8397a949
 
   useEffect(() => {
     fetchCalendarData();
@@ -279,14 +109,9 @@ export default function ExploreScreen() {
           ...doc.data(),
         }));
 
-<<<<<<< HEAD
         loadedClasses.sort((a, b) =>
           String(a.startTime || "").localeCompare(String(b.startTime || "")),
         );
-=======
-        const fetchClassesForSelectedDate = async () => {
-            setIsLoadingClasses(true);
->>>>>>> e3da7e70f0a31d403b96169003fd4eff8397a949
 
         setClassesForDate(loadedClasses);
         setIsLoadingClasses(false);
@@ -464,7 +289,6 @@ export default function ExploreScreen() {
           text: "Reservar",
           onPress: async () => {
             try {
-<<<<<<< HEAD
               const userName = user?.displayName || "Atleta";
 
               await bookClass(user.uid, cls, userName);
@@ -474,84 +298,6 @@ export default function ExploreScreen() {
             } catch (error) {
               console.error("Error reservando clase:", error);
               Alert.alert("Error", "No pudimos procesar tu reserva.");
-=======
-                const sourceClasses =
-                    allClasses.length > 0 ? allClasses : await fetchAllClasses();
-
-                const activeVisibleClasses = sourceClasses
-                    .filter((classItem) => classAppliesToDate(classItem, selectedDateISO))
-                    .map((classItem) => {
-                        const availableSpotsForDate = getAvailableSpotsForDate(
-                            classItem,
-                            selectedDateISO
-                        );
-
-                        return {
-                            ...classItem,
-                            date: selectedDateISO,
-                            classDate: selectedDateISO,
-                            dateISO: selectedDateISO,
-                            viewType: "available",
-                            availableSpotsForDate,
-                        };
-                    });
-
-                const cancelledReservationsForDate = allReservations
-                    .filter((reservation) => {
-                        const sameDate = getReservationDate(reservation) === selectedDateISO;
-                        const isCancelled = reservation.status === "cancelled";
-                        const isAcknowledged = reservation.userAcknowledgedCancellation === true;
-
-                        return sameDate && isCancelled && !isAcknowledged;
-                    })
-                    .map((reservation) => {
-                        const classId = reservation.classID || reservation.classId;
-                        const relatedClass = sourceClasses.find((classItem) => classItem.id === classId);
-
-                        return {
-                            ...(relatedClass || {}),
-                            id: classId || reservation.id,
-                            name: reservation.className || relatedClass?.name || "Clase",
-                            startTime:
-                                reservation.classTime ||
-                                relatedClass?.startTime ||
-                                "--:--",
-                            coachName:
-                                reservation.coachName ||
-                                relatedClass?.coachName ||
-                                "Coach",
-                            date: selectedDateISO,
-                            classDate: selectedDateISO,
-                            dateISO: selectedDateISO,
-                            status: "cancelled",
-                            active: false,
-                            viewType: "cancelledReservation",
-                            reservationInfo: reservation,
-                            availableSpotsForDate: 0,
-                        };
-                    });
-
-                const mergedClasses = [...activeVisibleClasses, ...cancelledReservationsForDate]
-                    .filter((item, index, array) => {
-                        const key = `${item.id}-${item.dateISO}-${item.viewType}`;
-                        return (
-                            array.findIndex(
-                                (candidate) =>
-                                    `${candidate.id}-${candidate.dateISO}-${candidate.viewType}` === key
-                            ) === index
-                        );
-                    })
-                    .sort((a, b) =>
-                        String(a.startTime || "").localeCompare(String(b.startTime || ""))
-                    );
-
-                setClassesForDate(mergedClasses);
-            } catch (error) {
-                console.log("Error cargando clases:", error?.message || error);
-                setClassesForDate([]);
-            } finally {
-                setIsLoadingClasses(false);
->>>>>>> e3da7e70f0a31d403b96169003fd4eff8397a949
             }
           },
         },
@@ -559,22 +305,10 @@ export default function ExploreScreen() {
     );
   };
 
-<<<<<<< HEAD
   const handleCancelClass = (cls) => {
     const reservation = allReservations.find(
       (item) => item.classID === cls.id || item.classId === cls.id,
     );
-=======
-        fetchClassesForSelectedDate();
-    }, [
-        selectedDateISO,
-        user?.uid,
-        allClasses,
-        allReservations,
-        fetchAllClasses,
-        getAvailableSpotsForDate,
-    ]);
->>>>>>> e3da7e70f0a31d403b96169003fd4eff8397a949
 
     if (!reservation) {
       Alert.alert("Error", "No encontramos la reserva para cancelar.");
@@ -596,14 +330,8 @@ export default function ExploreScreen() {
 
               Alert.alert("Cancelada", "Reserva cancelada exitosamente.");
             } catch (error) {
-<<<<<<< HEAD
               console.error("Error cancelando clase:", error);
               Alert.alert("Error", "No se pudo cancelar la reserva.");
-=======
-                console.log("Error cargando horarios de coaches:", error?.message || error);
-            } finally {
-                setIsLoadingCoaches(false);
->>>>>>> e3da7e70f0a31d403b96169003fd4eff8397a949
             }
           },
         },
@@ -632,15 +360,7 @@ export default function ExploreScreen() {
                 schedule.startTime || schedule.time,
               );
 
-<<<<<<< HEAD
               await fetchCalendarData();
-=======
-    const visibleReservations = useMemo(() => {
-        return allReservations.filter(
-            (reservation) => reservation.userAcknowledgedCancellation !== true
-        );
-    }, [allReservations]);
->>>>>>> e3da7e70f0a31d403b96169003fd4eff8397a949
 
               Alert.alert("¡Listo!", "Coach reservado para el mes.");
             } catch (error) {
@@ -678,74 +398,10 @@ export default function ExploreScreen() {
               await cancelCoachReservation(reservation.id);
               await fetchCalendarData();
 
-<<<<<<< HEAD
               Alert.alert("Cancelado", "Entrenamiento mensual cancelado.");
             } catch (error) {
               console.error("Error cancelando coach:", error);
               Alert.alert("Error", "No se pudo cancelar.");
-=======
-        const days = [];
-
-        for (let i = 0; i < firstDay; i++) {
-            days.push(null);
-        }
-
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        let creationDate = null;
-
-        if (user?.metadata?.creationTime) {
-            creationDate = new Date(user.metadata.creationTime);
-            creationDate.setHours(0, 0, 0, 0);
-        }
-
-        for (let i = 1; i <= daysInMonth; i++) {
-            const dateObj = new Date(year, month, i);
-            dateObj.setHours(0, 0, 0, 0);
-
-            const isoDate = `${year}-${String(month + 1).padStart(2, "0")}-${String(
-                i
-            ).padStart(2, "0")}`;
-
-            const hasAttended = gymAttendance.some(
-                (item) => getAttendanceDate(item) === isoDate
-            );
-
-            const hasReservedClassMarker = visibleReservations.some(
-                (reservation) => getReservationDate(reservation) === isoDate
-            );
-
-            const hasCancelledReservationMarker = visibleReservations.some(
-                (reservation) =>
-                    getReservationDate(reservation) === isoDate &&
-                    reservation.status === "cancelled"
-            );
-
-            const hasAvailableClassMarker = allClasses.some((classItem) =>
-                classAppliesToDate(classItem, isoDate)
-            );
-
-            const hasClassMarker =
-                hasReservedClassMarker || hasAvailableClassMarker || hasCancelledReservationMarker;
-
-            const dayOfWeek = dateObj.getDay();
-
-            const hasCoachMarker = coachReservations.some(
-                (reservation) =>
-                    Array.isArray(reservation.slots) &&
-                    reservation.slots.includes(dayOfWeek)
-            );
-
-            let attendanceState = "neutral";
-
-            if (hasAttended) {
-                attendanceState = "attended";
-            } else if (dateObj < today) {
-                if (!creationDate || dateObj >= creationDate) {
-                    attendanceState = "missed";
-                }
->>>>>>> e3da7e70f0a31d403b96169003fd4eff8397a949
             }
           },
         },
@@ -753,7 +409,6 @@ export default function ExploreScreen() {
     );
   };
 
-<<<<<<< HEAD
   const monthNames = [
     "Enero",
     "Febrero",
@@ -781,694 +436,6 @@ export default function ExploreScreen() {
           <Text className="text-gray-400 font-medium mt-1">
             Sigue tu progreso y actividades
           </Text>
-=======
-            days.push({
-                day: i,
-                isoDate,
-                dateObj,
-                hasClassMarker,
-                hasCoachMarker,
-                hasCancelledReservationMarker,
-                attendanceState,
-            });
-        }
-
-        return days;
-    }, [
-        currentMonth,
-        visibleReservations,
-        coachReservations,
-        gymAttendance,
-        user,
-        allClasses,
-    ]);
-
-    const handlePrevMonth = () => {
-        setCurrentMonth(
-            (prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1)
-        );
-    };
-
-    const handleNextMonth = () => {
-        setCurrentMonth(
-            (prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1)
-        );
-    };
-
-    const getClassReservationForSelectedDate = (cls) => {
-        if (cls.reservationInfo) return cls.reservationInfo;
-
-        return allReservations.find((item) => {
-            const sameClass = item.classID === cls.id || item.classId === cls.id;
-            const sameDate = getReservationDate(item) === selectedDateISO;
-            return sameClass && sameDate;
-        });
-    };
-
-    const handleReserveClass = (cls) => {
-        const isCancelled = isClassCancelledForDate(cls, selectedDateISO);
-
-        if (isCancelled) {
-            Alert.alert("Clase cancelada", "Esta clase no está disponible para reservar.");
-            return;
-        }
-
-        const spotsForDate = cls.availableSpotsForDate ?? getAvailableSpotsForDate(cls, selectedDateISO);
-
-        if (spotsForDate <= 0) {
-            Alert.alert("Clase llena", "No hay lugares disponibles para esta fecha.");
-            return;
-        }
-
-        Alert.alert(
-            "Confirmar reserva",
-            `${cls.name}\n${selectedDateISO} a las ${cls.startTime}\n\n${getRecurrenceText(cls)}\n\nPor ahora se reservará únicamente esta fecha.`,
-            [
-                { text: "Cancelar", style: "cancel" },
-                {
-                    text: "Reservar esta fecha",
-                    onPress: async () => {
-                        try {
-                            const userName = user?.displayName || "Atleta";
-
-                            await bookClass(
-                                user.uid,
-                                {
-                                    ...cls,
-                                    date: selectedDateISO,
-                                    classDate: selectedDateISO,
-                                    dateISO: selectedDateISO,
-                                },
-                                userName
-                            );
-
-                            await fetchCalendarData();
-
-                            Alert.alert("¡Listo!", "Tu lugar está asegurado para esta fecha.");
-                        } catch (error) {
-                            console.log("Error reservando clase:", error?.message || error);
-                            Alert.alert(
-                                "Error",
-                                error?.message || "No pudimos procesar tu reserva."
-                            );
-                        }
-                    },
-                },
-            ]
-        );
-    };
-
-    const handleCancelClass = (cls) => {
-        const reservation = getClassReservationForSelectedDate(cls);
-
-        if (!reservation) {
-            Alert.alert("Error", "No encontramos la reserva para cancelar.");
-            return;
-        }
-
-        Alert.alert(
-            "Cancelar reserva",
-            `¿Seguro que quieres cancelar tu reserva de ${cls.name}?`,
-            [
-                { text: "Volver", style: "cancel" },
-                {
-                    text: "Sí, cancelar",
-                    style: "destructive",
-                    onPress: async () => {
-                        try {
-                            await cancelClassReservation(reservation.id, cls.id);
-                            await fetchCalendarData();
-
-                            Alert.alert("Cancelada", "Reserva cancelada exitosamente.");
-                        } catch (error) {
-                            console.log("Error cancelando clase:", error?.message || error);
-                            Alert.alert("Error", "No se pudo cancelar la reserva.");
-                        }
-                    },
-                },
-            ]
-        );
-    };
-
-    const handleAcknowledgeCancellation = (reservation) => {
-        if (!reservation?.id) return;
-
-        Alert.alert(
-            "Clase cancelada",
-            "Al confirmar, esta clase cancelada dejará de aparecer en tu calendario.",
-            [
-                { text: "Volver", style: "cancel" },
-                {
-                    text: "OK, entendido",
-                    onPress: async () => {
-                        const result = await acknowledgeClassCancellation(reservation.id);
-
-                        if (result.success) {
-                            await fetchCalendarData();
-                            setClassesForDate((prev) =>
-                                prev.filter(
-                                    (item) =>
-                                        item.reservationInfo?.id !== reservation.id
-                                )
-                            );
-                        } else {
-                            Alert.alert(
-                                "Error",
-                                result.message || "No se pudo confirmar el aviso."
-                            );
-                        }
-                    },
-                },
-            ]
-        );
-    };
-
-    const handleReserveCoach = (schedule) => {
-        Alert.alert(
-            "Entrenamiento personal",
-            `¿Deseas reservar con ${schedule.coachName} para el mes ${schedule.month}/${schedule.year}?`,
-            [
-                { text: "Cancelar", style: "cancel" },
-                {
-                    text: "Reservar mes",
-                    onPress: async () => {
-                        try {
-                            await reserveCoachMonthlySchedule(
-                                user.uid,
-                                schedule.coachId,
-                                schedule.coachName,
-                                schedule.month,
-                                schedule.year,
-                                schedule.slots,
-                                schedule.id,
-                                schedule.startTime || schedule.time
-                            );
-
-                            await fetchCalendarData();
-
-                            Alert.alert("¡Listo!", "Coach reservado para el mes.");
-                        } catch (error) {
-                            console.log("Error reservando coach:", error?.message || error);
-                            Alert.alert("Error", "No pudimos procesar tu reserva.");
-                        }
-                    },
-                },
-            ]
-        );
-    };
-
-    const handleCancelCoach = (schedule) => {
-        const reservation = coachReservations.find(
-            (item) =>
-                item.scheduleId === schedule.id ||
-                (item.coachId === schedule.coachId && item.month === schedule.month)
-        );
-
-        if (!reservation) {
-            Alert.alert("Error", "No encontramos la reserva mensual.");
-            return;
-        }
-
-        Alert.alert(
-            "Cancelar entrenamiento",
-            `¿Seguro que quieres cancelar el entrenamiento mensual con ${schedule.coachName}?`,
-            [
-                { text: "Volver", style: "cancel" },
-                {
-                    text: "Sí, cancelar",
-                    style: "destructive",
-                    onPress: async () => {
-                        try {
-                            await cancelCoachReservation(reservation.id);
-                            await fetchCalendarData();
-
-                            Alert.alert("Cancelado", "Entrenamiento mensual cancelado.");
-                        } catch (error) {
-                            console.log("Error cancelando coach:", error?.message || error);
-                            Alert.alert("Error", "No se pudo cancelar.");
-                        }
-                    },
-                },
-            ]
-        );
-    };
-
-    const monthNames = [
-        "Enero",
-        "Febrero",
-        "Marzo",
-        "Abril",
-        "Mayo",
-        "Junio",
-        "Julio",
-        "Agosto",
-        "Septiembre",
-        "Octubre",
-        "Noviembre",
-        "Diciembre",
-    ];
-
-    const dayNames = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
-
-    return (
-        <View className="flex-1 bg-impulse-dark pt-14 px-5">
-            <View className="mb-6 mt-2 flex-row justify-between items-start">
-                <View>
-                    <Text className="text-white text-3xl font-black tracking-tight">
-                        Tu Calendario
-                    </Text>
-                    <Text className="text-gray-400 font-medium mt-1">
-                        Sigue tu progreso y actividades
-                    </Text>
-                </View>
-
-                <TouchableOpacity
-                    onPress={() => router.push("/(user)/scan-attendance")}
-                    className="bg-[#1C1C1E] flex-row items-center pl-3 pr-4 py-2 rounded-2xl border border-white/10"
-                >
-                    <IconSymbol name="qrcode.viewfinder" size={18} color="#00E5FF" />
-                    <Text className="text-[#00E5FF] font-bold text-xs ml-2">SCAN</Text>
-                </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 120 }}>
-                <View className="bg-[#1C1C1E] p-5 rounded-3xl mb-6 shadow-lg border border-white/5 mx-1">
-                    <View className="flex-row justify-between items-center mb-4 px-2">
-                        <TouchableOpacity onPress={handlePrevMonth} className="bg-white/10 p-2 rounded-full">
-                            <IconSymbol name="chevron.left" size={20} color="#00E5FF" />
-                        </TouchableOpacity>
-
-                        <Text className="text-white text-lg font-bold">
-                            {monthNames[currentMonth.getMonth()].toUpperCase()} {currentMonth.getFullYear()}
-                        </Text>
-
-                        <TouchableOpacity onPress={handleNextMonth} className="bg-white/10 p-2 rounded-full">
-                            <IconSymbol name="chevron.right" size={20} color="#00E5FF" />
-                        </TouchableOpacity>
-                    </View>
-
-                    <View className="flex-row mb-2">
-                        {dayNames.map((day) => (
-                            <Text key={day} className="flex-1 text-center text-gray-500 text-[10px] font-black uppercase">
-                                {day}
-                            </Text>
-                        ))}
-                    </View>
-
-                    {isLoadingCalendar ? (
-                        <View className="py-8 items-center justify-center">
-                            <ActivityIndicator color="#00E5FF" size="large" />
-                        </View>
-                    ) : (
-                        <View className="flex-row flex-wrap">
-                            {calendarDays.map((item, index) => {
-                                if (!item) {
-                                    return <View key={`empty-${index}`} style={{ width: "14.28%", aspectRatio: 1 }} />;
-                                }
-
-                                const isSelected = item.isoDate === selectedDateISO;
-
-                                let bgClass = "bg-[#2C2C2E]";
-                                let borderClass = "border-transparent";
-                                let textClass = "text-white";
-
-                                if (item.attendanceState === "attended") {
-                                    bgClass = "bg-green-500/30";
-                                    textClass = "text-green-300";
-                                }
-
-                                if (item.attendanceState === "missed") {
-                                    bgClass = "bg-red-500/20";
-                                    textClass = "text-white";
-                                }
-
-                                if (item.hasCancelledReservationMarker) {
-                                    bgClass = "bg-red-500/30";
-                                    textClass = "text-red-200";
-                                }
-
-                                if (isSelected) {
-                                    borderClass = "border-impulse-cyan border-[2px]";
-                                    textClass = "text-impulse-cyan";
-                                }
-
-                                return (
-                                    <TouchableOpacity
-                                        key={`day-${item.day}`}
-                                        onPress={() => setSelectedDateISO(item.isoDate)}
-                                        activeOpacity={0.7}
-                                        style={{ width: "14.28%", aspectRatio: 1, padding: 3 }}
-                                    >
-                                        <View className={`flex-1 rounded-xl items-center justify-center border ${bgClass} ${borderClass}`}>
-                                            <Text className={`text-sm font-bold ${textClass}`}>{item.day}</Text>
-
-                                            <View className="flex-row mt-1 space-x-1">
-                                                {item.hasClassMarker && (
-                                                    <View
-                                                        className={`w-1.5 h-1.5 rounded-full ${
-                                                            item.hasCancelledReservationMarker ? "bg-red-400" : "bg-pink-500"
-                                                        }`}
-                                                    />
-                                                )}
-
-                                                {item.hasCoachMarker && <View className="w-1.5 h-1.5 rounded-full bg-blue-500" />}
-
-                                                {item.attendanceState === "attended" && (
-                                                    <View className="w-1.5 h-1.5 rounded-full bg-green-400" />
-                                                )}
-                                            </View>
-                                        </View>
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </View>
-                    )}
-                </View>
-
-                <View className="bg-[#1C1C1E] p-5 rounded-3xl mb-6 mx-1 border border-green-500/30 flex-row items-center">
-                    <View className="bg-green-500/20 p-3 rounded-2xl mr-4">
-                        <IconSymbol name="flame.fill" size={28} color="#22c55e" />
-                    </View>
-
-                    <View className="flex-1">
-                        <Text className="text-white text-xl font-black tracking-tighter">
-                            {streakCount} días consecutivos
-                        </Text>
-                        <Text className="text-gray-400 text-sm font-medium mt-0.5">
-                            {streakCount > 0 ? "¡Excelente ritmo, sigue así!" : "Comienza tu racha hoy"}
-                        </Text>
-                    </View>
-                </View>
-
-                <View className="bg-[#1C1C1E] p-1 rounded-full flex-row mx-1 mb-6 border border-white/5">
-                    <TouchableOpacity
-                        onPress={() => setActiveTab("classes")}
-                        className={`flex-1 py-3 rounded-full items-center ${
-                            activeTab === "classes"
-                                ? "bg-impulse-cyan/20 border border-impulse-cyan/30"
-                                : "bg-transparent border border-transparent"
-                        }`}
-                    >
-                        <Text className={`font-black tracking-wide ${activeTab === "classes" ? "text-impulse-cyan" : "text-gray-400"}`}>
-                            CLASES
-                        </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
-                        onPress={() => setActiveTab("coaches")}
-                        className={`flex-1 py-3 rounded-full items-center ${
-                            activeTab === "coaches"
-                                ? "bg-blue-600/20 border border-blue-500/30"
-                                : "bg-transparent border border-transparent"
-                        }`}
-                    >
-                        <Text className={`font-black tracking-wide ${activeTab === "coaches" ? "text-blue-400" : "text-gray-400"}`}>
-                            COACHES
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-
-                {activeTab === "classes" ? (
-                    <View>
-                        <Text className="text-white text-lg font-black mb-4 mx-2">
-                            Programación del día
-                        </Text>
-
-                        {isLoadingClasses ? (
-                            <View className="py-10 items-center justify-center">
-                                <ActivityIndicator color="#00E5FF" size="large" />
-                            </View>
-                        ) : classesForDate.length === 0 ? (
-                            <View className="py-10 items-center justify-center bg-[#1C1C1E] rounded-3xl mx-1 border border-white/5">
-                                <IconSymbol name="calendar.badge.exclamationmark" size={48} color="#444" />
-                                <Text className="text-gray-500 font-bold mt-4">
-                                    No hay clases programadas para este día.
-                                </Text>
-                            </View>
-                        ) : (
-                            classesForDate.map((cls) => {
-                                const reservationInfo = getClassReservationForSelectedDate(cls);
-                                const isReserved = !!reservationInfo;
-                                const isAttended = reservationInfo?.status === "attended";
-                                const isCancelled =
-                                    cls.status === "cancelled" ||
-                                    reservationInfo?.status === "cancelled" ||
-                                    isClassCancelledForDate(cls, selectedDateISO);
-
-                                const spots = cls.availableSpotsForDate ?? getAvailableSpotsForDate(cls, selectedDateISO);
-                                const isFull = spots <= 0 && !isReserved;
-
-                                return (
-                                    <View
-                                        key={`${cls.id}-${selectedDateISO}-${cls.viewType || "class"}`}
-                                        className={`p-5 rounded-3xl mb-4 border mx-1 ${
-                                            isCancelled
-                                                ? "bg-red-900/10 border-red-500/40"
-                                                : "bg-[#1C1C1E] border-white/5"
-                                        }`}
-                                    >
-                                        <View className="flex-row justify-between items-center mb-4">
-                                            <View>
-                                                <Text className={`text-3xl font-black tracking-tighter ${isCancelled ? "text-red-400" : "text-white"}`}>
-                                                    {cls.startTime}
-                                                </Text>
-
-                                                {cls.endTime && (
-                                                    <Text className="text-gray-500 font-bold mb-1">
-                                                        hasta {cls.endTime}
-                                                    </Text>
-                                                )}
-
-                                                <Text className={`font-bold text-sm uppercase tracking-widest mt-1 ${isCancelled ? "text-red-400" : "text-gray-400"}`}>
-                                                    {cls.name}
-                                                </Text>
-                                            </View>
-
-                                            {isCancelled ? (
-                                                <View className="bg-red-500/20 px-3 py-1.5 rounded-full border border-red-500/40">
-                                                    <Text className="font-bold text-[10px] text-red-500 tracking-wider">
-                                                        CANCELADA
-                                                    </Text>
-                                                </View>
-                                            ) : (
-                                                <View className="bg-pink-500/10 px-3 py-1.5 rounded-full border border-pink-500/30">
-                                                    <Text className="font-bold text-[10px] text-pink-400 tracking-wider">
-                                                        GRUPO
-                                                    </Text>
-                                                </View>
-                                            )}
-                                        </View>
-
-                                        <View className="flex-row items-center mb-3">
-                                            <View className={`w-8 h-8 rounded-full items-center justify-center mr-3 ${isCancelled ? "bg-red-500/20" : "bg-white/10"}`}>
-                                                <IconSymbol name="person.fill" size={14} color={isCancelled ? "#EF4444" : "#888"} />
-                                            </View>
-
-                                            <Text className={`font-medium ${isCancelled ? "text-red-400" : "text-gray-300"}`}>
-                                                {cls.coachName || "Coach Invitado"}
-                                            </Text>
-                                        </View>
-
-                                        {!isCancelled && (
-                                            <Text className="text-gray-500 text-xs mb-4">
-                                                {getRecurrenceText(cls)}
-                                            </Text>
-                                        )}
-
-                                        <View className={`flex-row items-center justify-between mt-2 pt-4 border-t ${isCancelled ? "border-red-500/20" : "border-white/5"}`}>
-                                            {isCancelled ? (
-                                                <View className="w-full">
-                                                    <Text className="text-red-500 font-black text-xs uppercase tracking-widest text-center mb-1">
-                                                        Clase cancelada por el coach
-                                                    </Text>
-
-                                                    <Text className="text-red-300 text-xs text-center mb-4">
-                                                        Confirma que te enteraste para ocultarla de tu calendario.
-                                                    </Text>
-
-                                                    <TouchableOpacity
-                                                        onPress={() => handleAcknowledgeCancellation(reservationInfo)}
-                                                        className="bg-red-500/20 border border-red-500/40 py-3 rounded-xl items-center"
-                                                    >
-                                                        <Text className="text-red-400 font-black text-xs tracking-widest">
-                                                            OK, ENTENDIDO
-                                                        </Text>
-                                                    </TouchableOpacity>
-                                                </View>
-                                            ) : (
-                                                <>
-                                                    <Text className={`text-xs font-black ${isFull ? "text-red-500" : "text-gray-400"}`}>
-                                                        {isFull ? "SIN CUPO" : `${spots} LUGARES`}
-                                                    </Text>
-
-                                                    {isReserved ? (
-                                                        <View className="flex-row gap-2">
-                                                            <TouchableOpacity
-                                                                onPress={() =>
-                                                                    router.push({
-                                                                        pathname: "/(user)/ticket",
-                                                                        params: {
-                                                                            classId: cls.id,
-                                                                            className: cls.name,
-                                                                            time: cls.startTime,
-                                                                            coach: cls.coachName,
-                                                                            date: selectedDateISO,
-                                                                        },
-                                                                    })
-                                                                }
-                                                                className="px-5 py-2.5 rounded-xl bg-white/10 border border-white/20"
-                                                            >
-                                                                <Text className="font-black text-xs text-white">
-                                                                    VER TICKET
-                                                                </Text>
-                                                            </TouchableOpacity>
-
-                                                            <TouchableOpacity
-                                                                onPress={() =>
-                                                                    isAttended
-                                                                        ? Alert.alert("Realizada", "Ya asististe a esta clase.")
-                                                                        : handleCancelClass(cls)
-                                                                }
-                                                                className={`px-5 py-2.5 rounded-xl border ${
-                                                                    isAttended
-                                                                        ? "bg-green-500/10 border-green-500/30"
-                                                                        : "bg-red-500/10 border-red-500/30"
-                                                                }`}
-                                                            >
-                                                                <Text className={`font-black text-xs ${isAttended ? "text-green-500" : "text-red-500"}`}>
-                                                                    {isAttended ? "ASISTIDA" : "CANCELAR"}
-                                                                </Text>
-                                                            </TouchableOpacity>
-                                                        </View>
-                                                    ) : (
-                                                        <TouchableOpacity
-                                                            onPress={() => handleReserveClass(cls)}
-                                                            disabled={isFull}
-                                                            className={`px-6 py-2.5 rounded-xl ${isFull ? "bg-white/5" : "bg-impulse-cyan"}`}
-                                                        >
-                                                            <Text className={`font-black text-xs ${isFull ? "text-white/20" : "text-black"}`}>
-                                                                RESERVAR
-                                                            </Text>
-                                                        </TouchableOpacity>
-                                                    )}
-                                                </>
-                                            )}
-                                        </View>
-                                    </View>
-                                );
-                            })
-                        )}
-                    </View>
-                ) : (
-                    <View>
-                        <Text className="text-white text-lg font-black mb-4 mx-2">
-                            Disponibilidad mensual
-                        </Text>
-
-                        {isLoadingCoaches ? (
-                            <View className="py-10 items-center justify-center">
-                                <ActivityIndicator color="#00E5FF" size="large" />
-                            </View>
-                        ) : coachSchedules.length === 0 ? (
-                            <View className="py-10 items-center justify-center bg-[#1C1C1E] rounded-3xl mx-1 border border-white/5">
-                                <IconSymbol name="person.3.fill" size={48} color="#444" />
-                                <Text className="text-gray-500 font-bold mt-4">
-                                    No hay entrenamientos mensuales disponibles.
-                                </Text>
-                            </View>
-                        ) : (
-                            coachSchedules.map((schedule) => {
-                                const reservation = coachReservations.find(
-                                    (item) =>
-                                        item.scheduleId === schedule.id ||
-                                        (item.coachId === schedule.coachId &&
-                                            item.month === schedule.month)
-                                );
-
-                                const isReserved = !!reservation;
-
-                                return (
-                                    <View
-                                        key={schedule.id}
-                                        className="bg-[#1C1C1E] p-5 rounded-3xl mb-4 mx-1 border border-blue-500/20"
-                                    >
-                                        <View className="flex-row items-center mb-4">
-                                            <View className="w-16 h-16 rounded-full bg-blue-500/20 border-2 border-blue-500 items-center justify-center mr-4">
-                                                <Text className="text-2xl font-black text-blue-400">
-                                                    {schedule.coachName?.charAt(0) || "C"}
-                                                </Text>
-                                            </View>
-
-                                            <View className="flex-1">
-                                                <Text className="text-white text-xl font-black">
-                                                    {schedule.coachName}
-                                                </Text>
-                                                <Text className="text-gray-400 font-bold text-xs uppercase mt-0.5">
-                                                    Mensualidad ({schedule.month}/{schedule.year})
-                                                </Text>
-                                            </View>
-                                        </View>
-
-                                        <View className="bg-black/30 p-3 rounded-2xl mb-4 border border-white/5 opacity-80">
-                                            <Text className="text-blue-300 text-xs font-black mb-1">
-                                                DISPONIBILIDAD
-                                            </Text>
-
-                                            <Text className="text-gray-300 text-sm font-medium">
-                                                A las {schedule.startTime || schedule.time}
-                                                {schedule.endTime ? ` a ${schedule.endTime}` : ""}
-                                            </Text>
-                                        </View>
-
-                                        {isReserved ? (
-                                            <View className="flex-row items-center gap-2 mt-2">
-                                                <TouchableOpacity
-                                                    onPress={() =>
-                                                        router.push({
-                                                            pathname: "/(user)/ticket",
-                                                            params: {
-                                                                classId: schedule.id,
-                                                                type: "monthly",
-                                                                className: `Coach ${schedule.coachName}`,
-                                                                time: schedule.startTime || schedule.time,
-                                                                coach: schedule.coachName,
-                                                            },
-                                                        })
-                                                    }
-                                                    className="bg-white/10 flex-1 border border-white/30 py-3 rounded-xl items-center"
-                                                >
-                                                    <Text className="text-white font-black text-xs">
-                                                        VER TICKET
-                                                    </Text>
-                                                </TouchableOpacity>
-
-                                                <TouchableOpacity
-                                                    onPress={() => handleCancelCoach(schedule)}
-                                                    className="bg-red-500/10 border border-red-500/30 py-3 px-4 rounded-xl items-center"
-                                                >
-                                                    <Text className="text-red-500 font-black text-xs">
-                                                        X
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            </View>
-                                        ) : (
-                                            <TouchableOpacity
-                                                onPress={() => handleReserveCoach(schedule)}
-                                                className="bg-blue-600/20 border border-blue-500 py-3 rounded-xl items-center"
-                                            >
-                                                <Text className="text-blue-400 font-black text-xs tracking-wider">
-                                                    RESERVAR MES
-                                                </Text>
-                                            </TouchableOpacity>
-                                        )}
-                                    </View>
-                                );
-                            })
-                        )}
-                    </View>
-                )}
-            </ScrollView>
->>>>>>> e3da7e70f0a31d403b96169003fd4eff8397a949
         </View>
 
         <TouchableOpacity
@@ -1594,7 +561,6 @@ export default function ExploreScreen() {
 
         <View className="bg-[#1C1C1E] p-5 rounded-3xl mb-6 mx-1 border border-green-500/30 flex-row items-center">
           <View className="bg-green-500/20 p-3 rounded-2xl mr-4">
-            {/* CORRECCIÓN: flame.fill -> flame */}
             <Ionicons name="flame" size={28} color="#22c55e" />
           </View>
 
@@ -1724,7 +690,6 @@ export default function ExploreScreen() {
                       <View
                         className={`w-8 h-8 rounded-full items-center justify-center mr-3 ${isCancelled ? "bg-red-500/20" : "bg-white/10"}`}
                       >
-                        {/* CORRECCIÓN: person.fill -> person */}
                         <Ionicons
                           name="person"
                           size={14}
@@ -1826,7 +791,6 @@ export default function ExploreScreen() {
               </View>
             ) : coachSchedules.length === 0 ? (
               <View className="py-10 items-center justify-center bg-[#1C1C1E] rounded-3xl mx-1 border border-white/5">
-                {/* CORRECCIÓN: person.3.fill -> people */}
                 <Ionicons name="people" size={48} color="#444" />
                 <Text className="text-gray-500 font-bold mt-4">
                   No hay entrenamientos mensuales disponibles.

@@ -135,7 +135,6 @@ export default function CoachRoutinesScreen() {
           </View>
         ) : routines.length === 0 ? (
           <View className="flex-1 justify-center items-center pb-20">
-            {/* CORRECCIÓN: dumbbell.fill -> barbell */}
             <Ionicons name="barbell" size={64} color="#333" />
             <Text className="text-white font-black text-xl mt-6">
               Sin Rutinas

@@ -41,7 +41,6 @@ export default function CoachLayout() {
         options={{
           title: "Atletas",
           tabBarIcon: ({ color }) => (
-            /* person.3.fill -> people */
             <Ionicons size={24} name="people" color={color} />
           ),
         }}
@@ -52,7 +51,6 @@ export default function CoachLayout() {
         options={{
           title: "Rutinas",
           tabBarIcon: ({ color }) => (
-            /* dumbbell.fill -> barbell */
             <Ionicons size={24} name="barbell" color={color} />
           ),
         }}
@@ -63,7 +61,6 @@ export default function CoachLayout() {
         options={{
           title: "Perfil",
           tabBarIcon: ({ color }) => (
-            /* person.crop.circle.fill -> person-circle */
             <Ionicons size={24} name="person-circle" color={color} />
           ),
         }}
